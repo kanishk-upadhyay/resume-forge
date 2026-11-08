@@ -576,3 +576,41 @@ input[type="range"] {
 .paper .skill-category {
   font-weight: 700;
 }
+
+/* Print Rules for In-Browser Single-Page PDF Generation */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.35in;
+  }
+
+  html, body, #app {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .navbar, .panel-left, .preview-toolbar, .page-break-line {
+    display: none !important;
+  }
+
+  .workspace, .panel-right, .paper-viewport {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  .paper {
+    box-shadow: none !important;
+    transform: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

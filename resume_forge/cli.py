@@ -12,6 +12,7 @@ from .core.compiler import ResumeCompiler
 from .core.ats import ATSAnalyzer
 from .core.schema import ResumeData
 from .core.variants import VariantManager
+from .core.tailor import BulletTailor
 
 
 def load_resume(input_path: str) -> ResumeData:
@@ -189,6 +190,68 @@ def cmd_variant(args):
             sys.exit(1)
 
 
+def cmd_tailor(args):
+    """Tailors resume bullet points to match a target job description."""
+    resume_data = load_resume(args.input)
+    
+    jd_text = ""
+    if args.jd:
+        jd_p = Path(args.jd)
+        if jd_p.exists():
+            jd_text = jd_p.read_text(encoding="utf-8")
+        else:
+            jd_text = args.jd
+    else:
+        print("Error: Target job description (--jd) is required for tailoring.", file=sys.stderr)
+        sys.exit(1)
+
+    tailor_engine = BulletTailor(resume_data)
+    result = tailor_engine.tailor(job_description=jd_text, provider=args.provider)
+    suggestions = result.get("suggestions", [])
+
+    print(f"\n=======================================================")
+    print(f"  RESUME FORGE - BULLET TAILOR ENGINE ({result.get('provider').upper()})")
+    print(f"=======================================================")
+    print(f"Target Skills Extracted: {', '.join(result.get('target_skills', []))}")
+    print(f"Improvement Suggestions Found: {len(suggestions)}\n")
+
+    accepted = []
+    for idx, s in enumerate(suggestions, 1):
+        print(f"[{idx}] {s.get('context')}")
+        print(f"    - Original : {s.get('original')}")
+        print(f"    + Improved : {s.get('improved')}")
+        for r in s.get("reasons", []):
+            print(f"      • Reason: {r}")
+
+        if args.interactive:
+            choice = input("    Apply this rewrite? [y/N/q]: ").strip().lower()
+            if choice == "y":
+                accepted.append(s)
+                print("    ✓ Staged for update.")
+            elif choice == "q":
+                print("    Exiting interactive review.")
+                break
+        elif args.apply_all:
+            accepted.append(s)
+
+        print("")
+
+    if accepted:
+        updated_data = tailor_engine.apply_improvements(accepted)
+        if args.output:
+            out_p = Path(args.output)
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            if out_p.suffix.lower() == ".json":
+                out_p.write_text(updated_data.to_json(indent=2), encoding="utf-8")
+            else:
+                out_p.write_text(ResumeExporter(updated_data).to_latex(), encoding="utf-8")
+            print(f"✓ Applied {len(accepted)} improvements -> '{args.output}'")
+        else:
+            print(f"✓ Applied {len(accepted)} improvements. (Use -o to save to file)")
+    else:
+        print("No changes applied.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="resume-forge",
@@ -252,6 +315,16 @@ def main():
     var_compile.add_argument("name", help="Variant name to compile")
     var_compile.add_argument("-o", "--output", help="Output PDF path")
     var_compile.set_defaults(func=cmd_variant)
+
+    # tailor
+    p_tailor = subparsers.add_parser("tailor", help="Optimize bullet points against a target job description")
+    p_tailor.add_argument("input", help="Path to resume file (.tex or .json)")
+    p_tailor.add_argument("--jd", required=True, help="Target job description text or file path")
+    p_tailor.add_argument("--provider", choices=["rule_based", "ollama"], default="rule_based", help="Tailoring provider (default: rule_based)")
+    p_tailor.add_argument("-i", "--interactive", action="store_true", help="Prompt to accept each improvement interactively")
+    p_tailor.add_argument("--apply-all", action="store_true", help="Automatically accept all suggested rewrites")
+    p_tailor.add_argument("-o", "--output", help="Output path for tailored resume (.tex or .json)")
+    p_tailor.set_defaults(func=cmd_tailor)
 
     args = parser.parse_args()
     args.func(args)

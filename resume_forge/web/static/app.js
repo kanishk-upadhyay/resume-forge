@@ -91,7 +91,6 @@ function setupActionButtons() {
       });
       const data = await resp.json();
       if (data.success && data.pdf_url) {
-        // Trigger download
         const a = document.createElement("a");
         a.href = data.pdf_url + "?t=" + Date.now();
         a.download = `${currentResume.basics.name.replace(/\s+/g, "_")}_Resume.pdf`;
@@ -99,10 +98,12 @@ function setupActionButtons() {
         a.click();
         document.body.removeChild(a);
       } else {
-        alert("Compilation error: " + (data.error || "Unknown error"));
+        // Fallback to browser print-to-pdf
+        window.print();
       }
     } catch (err) {
-      alert("Network error: " + err.message);
+      // Offline / Static hosting fallback: Native single-page print
+      window.print();
     } finally {
       btn.innerHTML = originalText;
       btn.disabled = false;
@@ -111,13 +112,18 @@ function setupActionButtons() {
 
   // Export LaTeX
   document.getElementById("btn-export-latex").addEventListener("click", async () => {
-    const resp = await fetch("/api/generate-tex", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resume: currentResume })
-    });
-    const data = await resp.json();
-    downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_resume.tex`, data.latex);
+    try {
+      const resp = await fetch("/api/generate-tex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume: currentResume })
+      });
+      const data = await resp.json();
+      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_resume.tex`, data.latex);
+    } catch (err) {
+      const tex = window.ClientResumeEngine ? window.ClientResumeEngine.generateLatex(currentResume) : "";
+      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_resume.tex`, tex);
+    }
   });
 
   // Export JSON
@@ -128,32 +134,32 @@ function setupActionButtons() {
 
   // Copy ATS Text
   document.getElementById("btn-copy-ats").addEventListener("click", () => {
-    let text = `${currentResume.basics.name}\n${currentResume.basics.email} | ${currentResume.basics.phone} | ${currentResume.basics.location.city}\n\n`;
+    let text = `${currentResume.basics.name}\n${currentResume.basics.email} | ${currentResume.basics.phone} | ${currentResume.basics.location?.city || ''}\n\n`;
     
     text += "EXPERIENCE\n";
     currentResume.work.forEach(w => {
       text += `${w.position} - ${w.name} (${w.start_date} - ${w.end_date})\n`;
-      w.highlights.forEach(h => text += `• ${h}\n`);
+      (w.highlights || []).forEach(h => text += `• ${h}\n`);
       text += "\n";
     });
 
     text += "EDUCATION\n";
     currentResume.education.forEach(e => {
       text += `${e.institution} - ${e.study_type} (${e.start_date} - ${e.end_date})\n`;
-      e.highlights.forEach(h => text += `• ${h}\n`);
+      (e.highlights || []).forEach(h => text += `• ${h}\n`);
       text += "\n";
     });
 
     text += "PROJECTS\n";
     currentResume.projects.forEach(p => {
-      text += `${p.name} [${p.keywords.join(", ")}]\n`;
-      p.highlights.forEach(h => text += `• ${h}\n`);
+      text += `${p.name} [${(p.keywords || []).join(", ")}]\n`;
+      (p.highlights || []).forEach(h => text += `• ${h}\n`);
       text += "\n";
     });
 
     text += "SKILLS\n";
     currentResume.skills.forEach(s => {
-      text += `${s.name}: ${s.keywords.join(", ")}\n`;
+      text += `${s.name}: ${(s.keywords || []).join(", ")}\n`;
     });
 
     navigator.clipboard.writeText(text);
@@ -163,17 +169,29 @@ function setupActionButtons() {
   // Parse TeX to Form
   document.getElementById("btn-parse-tex-to-form").addEventListener("click", async () => {
     const rawTex = document.getElementById("latex-editor").value;
-    const resp = await fetch("/api/parse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ latex: rawTex })
-    });
-    const data = await resp.json();
-    if (data.resume) {
-      currentResume = data.resume;
-      populateForm();
-      renderPreview();
-      alert(`Parsed successfully: ${data.summary.jobs} jobs, ${data.summary.projects} projects, ${data.summary.skills} skill categories!`);
+    try {
+      const resp = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latex: rawTex })
+      });
+      const data = await resp.json();
+      if (data.resume) {
+        currentResume = data.resume;
+        populateForm();
+        renderPreview();
+        alert(`Parsed successfully: ${data.summary.jobs} jobs, ${data.summary.projects} projects, ${data.summary.skills} skill categories!`);
+        return;
+      }
+    } catch (err) {
+      // Fallback to client-side engine
+      if (window.ClientResumeEngine) {
+        const parsed = window.ClientResumeEngine.parseLatex(rawTex);
+        currentResume = parsed;
+        populateForm();
+        renderPreview();
+        alert(`Parsed offline: ${parsed.work.length} jobs, ${parsed.projects.length} projects, ${parsed.skills.length} skill categories!`);
+      }
     }
   });
 
@@ -183,11 +201,21 @@ function setupActionButtons() {
   // ATS Audit
   document.getElementById("btn-run-audit").addEventListener("click", async () => {
     const jd = document.getElementById("jd-input").value;
-    const resp = await fetch("/api/audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resume: currentResume, job_description: jd })
-    });
+    try {
+      const resp = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume: currentResume, job_description: jd })
+      });
+      const audit = await resp.json();
+      renderAudit(audit);
+    } catch (err) {
+      if (window.ClientResumeEngine) {
+        const audit = window.ClientResumeEngine.auditResume(currentResume, jd);
+        renderAudit(audit);
+      }
+    }
+  });
     const audit = await resp.json();
     renderAudit(audit);
   });
@@ -614,14 +642,20 @@ function checkPageBudget() {
 }
 
 async function syncFormToLatex() {
-  const resp = await fetch("/api/generate-tex", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resume: currentResume })
-  });
-  const data = await resp.json();
-  if (data.latex) {
-    document.getElementById("latex-editor").value = data.latex;
+  try {
+    const resp = await fetch("/api/generate-tex", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resume: currentResume })
+    });
+    const data = await resp.json();
+    if (data.latex) {
+      document.getElementById("latex-editor").value = data.latex;
+    }
+  } catch (err) {
+    if (window.ClientResumeEngine) {
+      document.getElementById("latex-editor").value = window.ClientResumeEngine.generateLatex(currentResume);
+    }
   }
 }
 

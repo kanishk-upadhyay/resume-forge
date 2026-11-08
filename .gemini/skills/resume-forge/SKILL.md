@@ -57,6 +57,20 @@ Opens a local split-screen web application (Visual Form Editor + Raw LaTeX + Liv
 python3 -m resume_forge.cli serve --port 8080
 ```
 
+### 5. Tailor Bullets with Offline Engine or Local LLM
+Optimize bullet points against a target job description:
+```bash
+python3 -m resume_forge.cli tailor path/to/resume.tex --jd "Software Engineer - Distributed Systems, Go, Linux" -i
+```
+
+### 6. Manage Resume Variants
+Maintain target-specific resume variants (e.g. backend, fullstack, low-level):
+```bash
+python3 -m resume_forge.cli variant list
+python3 -m resume_forge.cli variant diff backend fullstack
+python3 -m resume_forge.cli variant compile backend -o output/backend.pdf
+```
+
 ---
 
 ## Python API Integration

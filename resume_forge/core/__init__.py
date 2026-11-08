@@ -6,6 +6,7 @@ from .exporter import ResumeExporter
 from .compiler import ResumeCompiler
 from .ats import ATSAnalyzer
 from .variants import VariantManager
+from .tailor import BulletTailor
 
 __all__ = [
     "ResumeData",
@@ -22,5 +23,6 @@ __all__ = [
     "ResumeExporter",
     "ResumeCompiler",
     "ATSAnalyzer",
-    "VariantManager"
+    "VariantManager",
+    "BulletTailor"
 ]
