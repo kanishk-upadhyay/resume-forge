@@ -1,0 +1,150 @@
+"""ATS Keyword Scanner, Readability Analyzer, and Single-Page Budget Inspector."""
+
+import re
+from typing import Dict, List, Any
+from .schema import ResumeData
+
+STRONG_ACTION_VERBS = {
+    "accelerated", "achieved", "architected", "automated", "built", "centralized",
+    "collaborated", "constructed", "created", "debugged", "decreased", "delivered",
+    "deployed", "designed", "developed", "diagnosed", "engineered", "enhanced",
+    "established", "executed", "formulated", "implemented", "improved", "increased",
+    "initiated", "installed", "integrated", "launched", "maintained", "managed",
+    "migrated", "modernized", "monitored", "optimized", "orchestrated", "overhauled",
+    "patched", "pioneered", "refactored", "resolved", "restructured", "revamped",
+    "scaled", "spearheaded", "standardized", "streamlined", "strengthened", "tested"
+}
+
+
+class ATSAnalyzer:
+    """Analyzes resume data for ATS compatibility, action verbs, metrics, and page budgeting."""
+
+    def __init__(self, data: ResumeData):
+        self.data = data
+
+    def analyze(self, job_description: str = "") -> Dict[str, Any]:
+        """Runs a complete ATS audit of the resume."""
+        score = 100
+        suggestions = []
+        strengths = []
+
+        # 1. Contact Info Audit
+        b = self.data.basics
+        if not b.name:
+            score -= 20
+            suggestions.append("Missing candidate name.")
+        if not b.email:
+            score -= 15
+            suggestions.append("Missing email address.")
+        if not b.phone:
+            score -= 10
+            suggestions.append("Missing phone number.")
+        if not b.profiles:
+            score -= 5
+            suggestions.append("Consider adding GitHub or LinkedIn profile links.")
+        else:
+            strengths.append(f"Contains {len(b.profiles)} active profile links.")
+
+        # 2. Section Checks
+        if not self.data.work:
+            score -= 15
+            suggestions.append("No work experience or internships detected.")
+        else:
+            strengths.append(f"{len(self.data.work)} experience roles listed.")
+
+        if not self.data.education:
+            score -= 10
+            suggestions.append("No education section detected.")
+        else:
+            strengths.append("Education section clearly specified.")
+
+        if not self.data.skills:
+            score -= 10
+            suggestions.append("No categorized skills section detected.")
+        else:
+            total_skills = sum(len(s.keywords) for s in self.data.skills)
+            strengths.append(f"{total_skills} technical skills categorized across {len(self.data.skills)} domains.")
+
+        # 3. Action Verb & Impact Metric Audit
+        all_bullets = []
+        for w in self.data.work:
+            all_bullets.extend(w.highlights)
+        for p in self.data.projects:
+            all_bullets.extend(p.highlights)
+        for os_item in self.data.open_source:
+            all_bullets.extend(os_item.highlights)
+
+        action_verb_count = 0
+        metric_count = 0
+
+        metric_pattern = re.compile(r'\b(?:\d+%(?:\s+reduction|\s+increase|\s+faster|\s+improvement)?|\$\d+|\d+\+?\s*(?:users|requests|ms|seconds|minutes|lines|stars|commits))\b', re.IGNORECASE)
+
+        for bullet in all_bullets:
+            words = re.findall(r'\b[a-zA-Z]+\b', bullet.lower())
+            if words and words[0] in STRONG_ACTION_VERBS:
+                action_verb_count += 1
+            if metric_pattern.search(bullet):
+                metric_count += 1
+
+        total_bullets = len(all_bullets)
+        if total_bullets > 0:
+            verb_pct = (action_verb_count / total_bullets) * 100
+            if verb_pct < 50:
+                score -= 10
+                suggestions.append(f"Only {int(verb_pct)}% of bullets begin with strong action verbs. Use verbs like 'Engineered', 'Optimized', 'Standardized'.")
+            else:
+                strengths.append(f"{int(verb_pct)}% of bullet points start with strong action verbs.")
+
+            if metric_count < 2:
+                suggestions.append("Add measurable outcomes (e.g. 'reduced latency by 40%', 'served 10,000+ users', 'improved throughput').")
+            else:
+                strengths.append(f"{metric_count} bullets contain quantifiable impact metrics.")
+
+        # 4. Job Description Keyword Matching (Optional)
+        matched_keywords = []
+        missing_keywords = []
+        if job_description:
+            jd_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', job_description.lower()))
+            resume_text = " ".join([
+                b.name, b.summary,
+                " ".join(all_bullets),
+                " ".join([k for s in self.data.skills for k in s.keywords])
+            ]).lower()
+
+            for kw in jd_words:
+                if kw in resume_text:
+                    matched_keywords.append(kw)
+                else:
+                    missing_keywords.append(kw)
+
+        # 5. Page Budget Estimation (assuming letter size, 10pt font)
+        # Roughly 48-52 content lines fit on a single page with 0.4in margins
+        estimated_lines = 4  # Header
+        estimated_lines += len(self.data.education) * 3 + sum(len(e.highlights) for e in self.data.education)
+        estimated_lines += len(self.data.work) * 3 + sum(len(w.highlights) for w in self.data.work)
+        estimated_lines += len(self.data.open_source) * 2 + sum(len(o.highlights) for o in self.data.open_source)
+        estimated_lines += len(self.data.projects) * 3 + sum(len(p.highlights) for p in self.data.projects)
+        estimated_lines += len(self.data.skills) * 2
+
+        page_budget_pct = min(150, int((estimated_lines / 50.0) * 100))
+        page_status = "Optimal (Single Page)"
+        if page_budget_pct > 105:
+            page_status = "Warning: Likely overflowing to Page 2"
+            suggestions.append(f"Content volume is at {page_budget_pct}% of a single page. Trim 3-5 bullets or reduce line-height to guarantee 1-page fit.")
+        elif page_budget_pct < 70:
+            page_status = "Spare Room: Plenty of space for more projects or metrics"
+
+        return {
+            "score": max(20, min(100, score)),
+            "page_budget_percent": page_budget_pct,
+            "page_status": page_status,
+            "estimated_lines": estimated_lines,
+            "strengths": strengths,
+            "suggestions": suggestions,
+            "matched_keywords": matched_keywords[:15],
+            "missing_keywords": missing_keywords[:10]
+        }
+
+    @property
+    def experience_count(self) -> int:
+        return len(self.data.work)

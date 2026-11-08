@@ -1,0 +1,210 @@
+{
+  "basics": {
+    "name": "Kanishk Upadhyay",
+    "label": "",
+    "email": "kanishkupadhyay22@gmail.com",
+    "phone": "+91 7772034062",
+    "url": "https://kanishk.pages.dev/treasures",
+    "summary": "",
+    "location": {
+      "city": "Bhopal, India",
+      "region": "",
+      "country_code": "",
+      "postal_code": "",
+      "address": ""
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "kanishk-upadhyay",
+        "url": "https://github.com/kanishk-upadhyay"
+      },
+      {
+        "network": "GitLab",
+        "username": "kanishk0",
+        "url": "https://gitlab.com/kanishk0"
+      },
+      {
+        "network": "LinkedIn",
+        "username": "kanishk22",
+        "url": "https://linkedin.com/in/kanishk22"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "OZ Media",
+      "position": "Software Developer Intern",
+      "url": "",
+      "start_date": "06/2025",
+      "end_date": "12/2025",
+      "summary": "",
+      "highlights": [
+        "Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.",
+        "Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.",
+        "Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35%."
+      ],
+      "location": "Remote"
+    },
+    {
+      "name": "Digigocare",
+      "position": "Web Developer Intern",
+      "url": "",
+      "start_date": "01/2026",
+      "end_date": "06/2026",
+      "summary": "",
+      "highlights": [
+        "Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.",
+        "Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation."
+      ],
+      "location": "Bhopal, India"
+    }
+  ],
+  "education": [
+    {
+      "institution": "Barkatullah University",
+      "url": "",
+      "area": "",
+      "study_type": "Bachelor of Engineering in Computer Science",
+      "start_date": "08/2023",
+      "end_date": "06/2027",
+      "score": "",
+      "courses": [],
+      "highlights": [
+        "Core Coursework: Data Structures & Algorithms, Operating Systems, Database Management Systems, Computer Networks.",
+        "Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Pokédex Web Application $",
+      "description": "",
+      "highlights": [
+        "Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.",
+        "Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters."
+      ],
+      "keywords": [
+        "$ Vanilla JavaScript",
+        "Service Workers",
+        "REST API",
+        "Surge"
+      ],
+      "start_date": "04/2024",
+      "end_date": "05/2024",
+      "url": "",
+      "roles": []
+    },
+    {
+      "name": "Sector 7 Marketplace $",
+      "description": "",
+      "highlights": [
+        "Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards."
+      ],
+      "keywords": [
+        "$ React",
+        "Redux Toolkit",
+        "Node.js",
+        "Vite"
+      ],
+      "start_date": "10/2024",
+      "end_date": "11/2024",
+      "url": "",
+      "roles": []
+    },
+    {
+      "name": "SmartSpend Expense Tracker $",
+      "description": "",
+      "highlights": [
+        "Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability."
+      ],
+      "keywords": [
+        "$ TypeScript",
+        "Python",
+        "SQLite",
+        "OCR"
+      ],
+      "start_date": "01/2025",
+      "end_date": "03/2025",
+      "url": "",
+      "roles": []
+    }
+  ],
+  "skills": [
+    {
+      "name": "Languages",
+      "level": "",
+      "keywords": [
+        "Python",
+        "C",
+        "Swift",
+        "JavaScript",
+        "TypeScript",
+        "HTML/CSS",
+        "SQL"
+      ]
+    },
+    {
+      "name": "Frameworks & Libraries",
+      "level": "",
+      "keywords": [
+        "React",
+        "Vue.js",
+        "Redux / Redux Toolkit",
+        "Flask",
+        "Django",
+        "Vite"
+      ]
+    },
+    {
+      "name": "Systems & DevOps",
+      "level": "",
+      "keywords": [
+        "Linux",
+        "Git",
+        "GitLab CI/CD",
+        "Nginx",
+        "Docker",
+        "Android Architecture",
+        "Cloudflare Pages"
+      ]
+    },
+    {
+      "name": "Databases & Protocols",
+      "level": "",
+      "keywords": [
+        "MySQL",
+        "SQLite",
+        "PostgreSQL",
+        "REST APIs",
+        "JSON-RPC",
+        "WebSocket"
+      ]
+    }
+  ],
+  "open_source": [
+    {
+      "project": "GitLab (Core Upstream Contributor)",
+      "role": "Vue.js Frontend Architecture",
+      "url": "",
+      "highlights": [
+        "Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.",
+        "Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards."
+      ]
+    },
+    {
+      "project": "Yatoro (Apple Music TUI Player)",
+      "role": "Swift Systems & Concurrency Patching",
+      "url": "",
+      "highlights": [
+        "Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.",
+        "Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts."
+      ]
+    }
+  ],
+  "meta": {
+    "version": "1.0.0",
+    "canonical": "https://jsonresume.org/schema/",
+    "generator": "resume-forge"
+  }
+}

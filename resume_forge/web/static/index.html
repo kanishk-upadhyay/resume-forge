@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Forge — In-House LaTeX & Resume Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Latin+Modern+Roman:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">ResumeForge</span>
+        <span class="badge-offline">In-House Offline</span>
+      </div>
+
+      <div class="nav-status">
+        <div id="page-budget-pill" class="pill pill-good">
+          <span class="pill-dot"></span>
+          <span id="page-budget-text">Page Budget: 95% (Single Page)</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button id="btn-compile-pdf" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="18"></line><line x1="15" y1="15" x2="12" y2="18"></line></svg>
+          Compile Single-Page PDF
+        </button>
+        <button id="btn-export-latex" class="btn btn-secondary">Export .tex</button>
+        <button id="btn-export-json" class="btn btn-secondary">JSON Resume</button>
+        <button id="btn-copy-ats" class="btn btn-secondary">Copy ATS Text</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Left Panel: Controls and Editors -->
+      <div class="panel-left">
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="form">📝 Visual Form</button>
+          <button class="tab-btn" data-tab="latex">📜 Raw LaTeX</button>
+          <button class="tab-btn" data-tab="design">🎨 Layout & Fonts</button>
+          <button class="tab-btn" data-tab="ats">🎯 ATS & Keywords</button>
+        </div>
+
+        <div class="tab-content">
+          <!-- Tab 1: Visual Form -->
+          <div id="tab-form" class="tab-pane active">
+            <!-- Contact section -->
+            <div class="section-card">
+              <h3 class="card-title">Personal Information</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input type="text" id="inp-name" placeholder="Kanishk Upadhyay">
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" id="inp-email" placeholder="kanishkupadhyay22@gmail.com">
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <input type="text" id="inp-phone" placeholder="+91 7772034062">
+                </div>
+                <div class="form-group">
+                  <label>Location</label>
+                  <input type="text" id="inp-location" placeholder="Bhopal, India">
+                </div>
+                <div class="form-group full-width">
+                  <label>Website / Portfolio</label>
+                  <input type="url" id="inp-website" placeholder="https://kanishk.pages.dev/treasures">
+                </div>
+              </div>
+            </div>
+
+            <!-- Experience section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Experience & Internships</h3>
+                <button id="btn-add-work" class="btn-sm">+ Add Role</button>
+              </div>
+              <div id="work-items-container"></div>
+            </div>
+
+            <!-- Education section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Education</h3>
+                <button id="btn-add-edu" class="btn-sm">+ Add Degree</button>
+              </div>
+              <div id="edu-items-container"></div>
+            </div>
+
+            <!-- Open Source section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Open-Source Contributions</h3>
+                <button id="btn-add-os" class="btn-sm">+ Add Contribution</button>
+              </div>
+              <div id="os-items-container"></div>
+            </div>
+
+            <!-- Projects section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Key Projects</h3>
+                <button id="btn-add-project" class="btn-sm">+ Add Project</button>
+              </div>
+              <div id="project-items-container"></div>
+            </div>
+
+            <!-- Skills section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Technical Skills</h3>
+                <button id="btn-add-skill" class="btn-sm">+ Add Category</button>
+              </div>
+              <div id="skill-items-container"></div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Raw LaTeX -->
+          <div id="tab-latex" class="tab-pane">
+            <div class="latex-toolbar">
+              <button id="btn-parse-tex-to-form" class="btn btn-sm btn-primary">⬇️ Parse TeX into Visual Form</button>
+              <button id="btn-gen-tex-from-form" class="btn btn-sm btn-secondary">⬆️ Regenerate TeX from Form</button>
+              <button id="btn-load-cern" class="btn btn-sm btn-outline">Load CERN Sample</button>
+            </div>
+            <textarea id="latex-editor" spellcheck="false" placeholder="Paste your .tex resume code here..."></textarea>
+          </div>
+
+          <!-- Tab 3: Design & Layout -->
+          <div id="tab-design" class="tab-pane">
+            <div class="section-card">
+              <h3 class="card-title">Single-Page Lock & Typography</h3>
+              
+              <div class="slider-group">
+                <div class="slider-label">
+                  <span>Font Size</span>
+                  <span id="val-font-size">10.0 pt</span>
+                </div>
+                <input type="range" id="range-font-size" min="8.5" max="11.5" step="0.25" value="10.0">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-label">
+                  <span>Line Height</span>
+                  <span id="val-line-height">1.25</span>
+                </div>
+                <input type="range" id="range-line-height" min="1.05" max="1.45" step="0.05" value="1.25">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-label">
+                  <span>Page Margin</span>
+                  <span id="val-margin">0.40 in</span>
+                </div>
+                <input type="range" id="range-margin" min="0.25" max="0.75" step="0.05" value="0.40">
+              </div>
+
+              <div class="form-group" style="margin-top: 15px;">
+                <label>Paper Standard</label>
+                <select id="sel-paper-size">
+                  <option value="letter" selected>US Letter (8.5 × 11 in)</option>
+                  <option value="a4">A4 Standard (210 × 297 mm)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 4: ATS & Keywords -->
+          <div id="tab-ats" class="tab-pane">
+            <div class="section-card">
+              <h3 class="card-title">Target Job Description (ATS Matcher)</h3>
+              <textarea id="jd-input" rows="5" placeholder="Paste job description text here (e.g. CERN Software Engineer, Fullstack, C, Python, React, Vue, Linux)..."></textarea>
+              <button id="btn-run-audit" class="btn btn-sm btn-primary" style="margin-top: 8px;">Run ATS & Keyword Audit</button>
+            </div>
+
+            <div id="ats-results" class="section-card" style="display: none;">
+              <div class="ats-score-row">
+                <div class="score-circle">
+                  <span id="ats-score-num">95</span>
+                  <span class="score-label">ATS Score</span>
+                </div>
+                <div class="ats-summary">
+                  <h4 id="ats-status-title">High Compatibility</h4>
+                  <p id="ats-page-status">Estimated Page Budget: 95% (Single Page)</p>
+                </div>
+              </div>
+
+              <div class="audit-section">
+                <h4>Strengths</h4>
+                <ul id="ats-strengths" class="audit-list strengths-list"></ul>
+              </div>
+
+              <div class="audit-section">
+                <h4>Actionable Recommendations</h4>
+                <ul id="ats-suggestions" class="audit-list suggestions-list"></ul>
+              </div>
+
+              <div class="audit-section">
+                <h4>Matched Job Keywords</h4>
+                <div id="ats-keywords-matched" class="tag-cloud"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Live Document Preview -->
+      <div class="panel-right">
+        <div class="preview-toolbar">
+          <span class="preview-title">Live Preview (Latin Modern Roman / LaTeX)</span>
+          <div class="preview-zoom">
+            <button id="btn-zoom-out" class="btn-icon">-</button>
+            <span id="zoom-level">100%</span>
+            <button id="btn-zoom-in" class="btn-icon">+</button>
+          </div>
+        </div>
+        
+        <div class="paper-viewport">
+          <div id="resume-paper" class="paper">
+            <!-- Rendered resume injected here -->
+          </div>
+          <!-- Single page boundary watermark -->
+          <div id="page-boundary-marker" class="page-break-line">
+            <span>Page 1 Boundary (8.5 × 11 in)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
