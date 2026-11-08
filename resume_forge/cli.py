@@ -11,6 +11,7 @@ from .core.exporter import ResumeExporter
 from .core.compiler import ResumeCompiler
 from .core.ats import ATSAnalyzer
 from .core.schema import ResumeData
+from .core.variants import VariantManager
 
 
 def load_resume(input_path: str) -> ResumeData:
@@ -152,6 +153,42 @@ def cmd_serve(args):
     run_server(port=args.port, open_browser=not args.no_open)
 
 
+def cmd_variant(args):
+    """Manages tailored resume variants."""
+    vm = VariantManager()
+    sub = args.variant_cmd
+
+    if sub == "list":
+        variants = vm.list_variants()
+        if not variants:
+            print("No variants found in 'variants/' directory.")
+            return
+        print(f"\nAvailable Resume Variants ({len(variants)}):")
+        for v in variants:
+            print(f"  • {v['name']} ({v['type'].upper()}, {v['size']} bytes) -> {v['path']}")
+        print("")
+
+    elif sub == "create":
+        dest = vm.create_variant(args.name, args.source)
+        print(f"✓ Created variant '{args.name}' from '{args.source}' -> {dest}")
+
+    elif sub == "diff":
+        diff_output = vm.diff_variants(args.v1, args.v2)
+        if not diff_output:
+            print(f"Variants '{args.v1}' and '{args.v2}' are identical.")
+        else:
+            print(diff_output)
+
+    elif sub == "compile":
+        out = args.output or f"{args.name}_resume.pdf"
+        success = vm.compile_variant(args.name, output_pdf=out)
+        if success:
+            print(f"✓ Variant '{args.name}' compiled successfully to '{out}'")
+        else:
+            print(f"✗ Failed to compile variant '{args.name}'", file=sys.stderr)
+            sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="resume-forge",
@@ -193,6 +230,28 @@ def main():
     p_serve.add_argument("--port", type=int, default=8080, help="Port to bind server (default: 8080)")
     p_serve.add_argument("--no-open", action="store_true", help="Do not open browser automatically")
     p_serve.set_defaults(func=cmd_serve)
+
+    # variant
+    p_var = subparsers.add_parser("variant", help="Manage and diff tailored resume variants")
+    var_sub = p_var.add_subparsers(dest="variant_cmd", required=True)
+
+    var_list = var_sub.add_parser("list", help="List all resume variants")
+    var_list.set_defaults(func=cmd_variant)
+
+    var_create = var_sub.add_parser("create", help="Create a new variant from an existing resume")
+    var_create.add_argument("name", help="Name of new variant (e.g. backend_python)")
+    var_create.add_argument("--source", required=True, help="Source .tex or .json file")
+    var_create.set_defaults(func=cmd_variant)
+
+    var_diff = var_sub.add_parser("diff", help="Diff two variants")
+    var_diff.add_argument("v1", help="First variant name")
+    var_diff.add_argument("v2", help="Second variant name")
+    var_diff.set_defaults(func=cmd_variant)
+
+    var_compile = var_sub.add_parser("compile", help="Compile a variant to single-page PDF")
+    var_compile.add_argument("name", help="Variant name to compile")
+    var_compile.add_argument("-o", "--output", help="Output PDF path")
+    var_compile.set_defaults(func=cmd_variant)
 
     args = parser.parse_args()
     args.func(args)

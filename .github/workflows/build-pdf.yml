@@ -1,0 +1,38 @@
+name: Build & Release PDF Resumes
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.tex'
+      - '**.json'
+      - 'resume_forge/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile CERN Resume to PDF
+        run: |
+          ./bin/resume-forge compile examples/kanishk_cern_fullstack_resume.tex -o kanishk_cern_resume.pdf
+
+      - name: Compile Systems Variant
+        run: |
+          ./bin/resume-forge variant compile systems_lowlevel -o kanishk_systems_resume.pdf
+
+      - name: Upload PDF Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-resumes
+          path: |
+            kanishk_cern_resume.pdf
+            kanishk_systems_resume.pdf

@@ -5,6 +5,7 @@ from .parser import LatexResumeParser, clean_latex
 from .exporter import ResumeExporter
 from .compiler import ResumeCompiler
 from .ats import ATSAnalyzer
+from .variants import VariantManager
 
 __all__ = [
     "ResumeData",
@@ -20,5 +21,6 @@ __all__ = [
     "clean_latex",
     "ResumeExporter",
     "ResumeCompiler",
-    "ATSAnalyzer"
+    "ATSAnalyzer",
+    "VariantManager"
 ]

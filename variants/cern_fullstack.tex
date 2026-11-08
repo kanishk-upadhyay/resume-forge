@@ -1,0 +1,158 @@
+\documentclass[letterpaper,10pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Margins adjustment for exact 1-page fit
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Custom commands
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape Kanishk Upadhyay} \\ \vspace{2pt}
+    \small +91 7772034062 $|$ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} $|$ Bhopal, India \\
+    \href{https://github.com/kanishk-upadhyay}{github.com/kanishk-upadhyay} $|$ \href{https://gitlab.com/kanishk0}{gitlab.com/kanishk0} $|$ \href{https://linkedin.com/in/kanishk22}{linkedin.com/in/kanishk22} $|$ \href{https://kanishk.pages.dev/treasures}{kanishk.pages.dev}
+\end{center}
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Barkatullah University}{08/2023 -- 06/2027}
+      {Bachelor of Engineering in Computer Science}{Bhopal, India}
+      \resumeItemListStart
+        \resumeItem{Core Coursework: Data Structures \& Algorithms, Operating Systems, Database Management Systems, Computer Networks.}
+        \resumeItem{Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Software Developer Intern}{06/2025 -- 12/2025}
+      {OZ Media}{Remote}
+      \resumeItemListStart
+        \resumeItem{Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.}
+        \resumeItem{Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.}
+        \resumeItem{Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35\%.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Web Developer Intern}{01/2026 -- 06/2026}
+      {Digigocare}{Bhopal, India}
+      \resumeItemListStart
+        \resumeItem{Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.}
+        \resumeItem{Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------OPEN-SOURCE CONTRIBUTIONS-----------
+\section{Open-Source Contributions}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {GitLab (Core Upstream Contributor)}{08/2024 -- Present}
+      {Vue.js Frontend Architecture}{GitLab.com}
+      \resumeItemListStart
+        \resumeItem{Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.}
+        \resumeItem{Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Yatoro (Apple Music TUI Player)}{09/2024 -- Present}
+      {Swift Systems \& Concurrency Patching}{GitHub}
+      \resumeItemListStart
+        \resumeItem{Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.}
+        \resumeItem{Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{Pokédex Web Application} $|$ \emph{Vanilla JavaScript, Service Workers, REST API, Surge}}{04/2024 -- 05/2024}
+      \resumeItemListStart
+        \resumeItem{Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.}
+        \resumeItem{Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Sector 7 Marketplace} $|$ \emph{React, Redux Toolkit, Node.js, Vite}}{10/2024 -- 11/2024}
+      \resumeItemListStart
+        \resumeItem{Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{SmartSpend Expense Tracker} $|$ \emph{TypeScript, Python, SQLite, OCR}}{01/2025 -- 03/2025}
+      \resumeItemListStart
+        \resumeItem{Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, C, Swift, JavaScript, TypeScript, HTML/CSS, SQL} \\
+     \textbf{Frameworks \& Libraries}{: React, Vue.js, Redux / Redux Toolkit, Flask, Django, Vite} \\
+     \textbf{Systems \& DevOps}{: Linux, Git, GitLab CI/CD, Nginx, Docker, Android Architecture, Cloudflare Pages} \\
+     \textbf{Databases \& Protocols}{: MySQL, SQLite, PostgreSQL, REST APIs, JSON-RPC, WebSocket} \\
+    }}
+ \end{itemize}
+
+\end{document}

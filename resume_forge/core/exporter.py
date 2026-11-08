@@ -1,5 +1,7 @@
 """Resume Exporter: Converts ResumeData into LaTeX (.tex), HTML (for PDF printing), and ATS Markdown."""
 
+import re
+from html import escape as html_escape
 from typing import Dict, Any, Optional
 from .schema import ResumeData
 
@@ -82,19 +84,15 @@ class ResumeExporter:
         """Generates industry-standard, ATS-optimized single-page LaTeX code."""
         b = self.data.basics
         
-        # Escape helpers for LaTeX
+        # Escape helpers for LaTeX (prevents double-escaping)
         def esc(s: str) -> str:
             if not s:
                 return ""
-            repl = [
-                ('&', r'\&'),
-                ('%', r'\%'),
-                ('$', r'\$'),
-                ('#', r'\#'),
-                ('_', r'\_'),
-            ]
-            for o, n in repl:
-                s = s.replace(o, n)
+            s = re.sub(r'(?<!\\)&', r'\&', s)
+            s = re.sub(r'(?<!\\)%', r'\%', s)
+            s = re.sub(r'(?<!\\)\$', r'\$', s)
+            s = re.sub(r'(?<!\\)#', r'\#', s)
+            s = re.sub(r'(?<!\\)_', r'\_', s)
             return s
 
         contact_items = []
@@ -421,7 +419,7 @@ class ResumeExporter:
                 if edu.highlights:
                     html += '<ul class="bullets">'
                     for h in edu.highlights:
-                        html += f"<li>{h}</li>"
+                        html += f"<li>{html_escape(h)}</li>"
                     html += "</ul>"
             html += "\n  </section>"
 
@@ -434,17 +432,17 @@ class ResumeExporter:
                 dates = f"{w.start_date} – {w.end_date}" if w.end_date else w.start_date
                 html += f"""
     <div class="item-header">
-      <div class="item-title">{w.position}</div>
+      <div class="item-title">{html_escape(w.position)}</div>
       <div class="item-date">{dates}</div>
     </div>
     <div class="item-header">
-      <div class="item-subtitle">{w.name}</div>
-      <div class="item-location">{w.location}</div>
+      <div class="item-subtitle">{html_escape(w.name)}</div>
+      <div class="item-location">{html_escape(w.location)}</div>
     </div>"""
                 if w.highlights:
                     html += '<ul class="bullets">'
                     for h in w.highlights:
-                        html += f"<li>{h}</li>"
+                        html += f"<li>{html_escape(h)}</li>"
                     html += "</ul>"
             html += "\n  </section>"
 
@@ -456,13 +454,13 @@ class ResumeExporter:
             for os_item in self.data.open_source:
                 html += f"""
     <div class="item-header">
-      <div class="item-title">{os_item.project}</div>
-      <div class="item-subtitle">{os_item.role}</div>
+      <div class="item-title">{html_escape(os_item.project)}</div>
+      <div class="item-subtitle">{html_escape(os_item.role)}</div>
     </div>"""
                 if os_item.highlights:
                     html += '<ul class="bullets">'
                     for h in os_item.highlights:
-                        html += f"<li>{h}</li>"
+                        html += f"<li>{html_escape(h)}</li>"
                     html += "</ul>"
             html += "\n  </section>"
 
@@ -474,17 +472,17 @@ class ResumeExporter:
             for p in self.data.projects:
                 p_name = p.name.replace('$', '').strip().rstrip('|').strip()
                 dates = f"{p.start_date} – {p.end_date}" if p.end_date else p.start_date
-                tech_str = f" | <em>{', '.join(p.keywords)}</em>" if p.keywords else ""
+                tech_str = f" | <em>{html_escape(', '.join(p.keywords))}</em>" if p.keywords else ""
                 url_str = f' <a href="{p.url}" target="_blank" style="font-size:0.85em; color:#0d47a1;">[Link]</a>' if p.url else ""
                 html += f"""
     <div class="item-header">
-      <div class="item-title">{p_name}{url_str}{tech_str}</div>
+      <div class="item-title">{html_escape(p_name)}{url_str}{tech_str}</div>
       <div class="item-date">{dates}</div>
     </div>"""
                 if p.highlights:
                     html += '<ul class="bullets">'
                     for h in p.highlights:
-                        html += f"<li>{h}</li>"
+                        html += f"<li>{html_escape(h)}</li>"
                     html += "</ul>"
             html += "\n  </section>"
 
@@ -496,7 +494,7 @@ class ResumeExporter:
             for s in self.data.skills:
                 html += f"""
     <div class="skill-line">
-      <span class="skill-name">{s.name}:</span> {', '.join(s.keywords)}
+      <span class="skill-name">{html_escape(s.name)}:</span> {html_escape(', '.join(s.keywords))}
     </div>"""
             html += "\n  </section>"
 

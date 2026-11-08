@@ -19,6 +19,10 @@ SHORT_TECH_TERMS = {
     "c", "go", "r", "js", "ts", "ai", "ml", "ui", "ux", "ci", "cd", "os", "ip", "db", "qa", "ar", "vr"
 }
 
+SPECIAL_TECH_TOKENS = {
+    "c++", "c#", ".net", "node.js", "vue.js", "react.js", "next.js", "nest.js", "three.js"
+}
+
 STOP_WORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
     "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
@@ -126,8 +130,11 @@ class ATSAnalyzer:
         matched_keywords = []
         missing_keywords = []
         if job_description:
-            raw_jd_words = set(re.findall(r'\b[a-zA-Z]{3,}\b|\b[a-zA-Z]{1,2}\b', job_description.lower()))
-            target_keywords = [
+            jd_lower = job_description.lower()
+            special_matched = [tok for tok in SPECIAL_TECH_TOKENS if tok in jd_lower]
+
+            raw_jd_words = set(re.findall(r'\b[a-zA-Z]{3,}\b|\b[a-zA-Z]{1,2}\b', jd_lower))
+            target_keywords = list(special_matched) + [
                 w for w in raw_jd_words
                 if (w in SHORT_TECH_TERMS or (len(w) >= 3 and w not in STOP_WORDS))
             ]
@@ -138,7 +145,12 @@ class ATSAnalyzer:
             ]).lower()
 
             for kw in target_keywords:
-                if len(kw) <= 2:
+                if kw in SPECIAL_TECH_TOKENS:
+                    if kw in resume_text:
+                        matched_keywords.append(kw)
+                    else:
+                        missing_keywords.append(kw)
+                elif len(kw) <= 2:
                     if re.search(rf'\b{re.escape(kw)}\b', resume_text):
                         matched_keywords.append(kw)
                     else:
