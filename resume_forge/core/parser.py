@@ -10,23 +10,32 @@ def clean_latex(text: str) -> str:
     if not text:
         return ""
     
-    # Replace URLs in \href{url}{label} with label, or extract both
-    text = re.sub(r'\\href\{([^}]+)\}\{([^}]+)\}', r'\2', text)
+    # 1. Normalize math-mode vertical dividers and text symbols
+    text = re.sub(r'\$\s*(?:\\vert|\|)\s*\$', ' | ', text)
+    
+    # 2. Extract labels from \href{url}{label} with nested brace support
+    href_pattern = r'\\href\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}'
+    while re.search(href_pattern, text):
+        text = re.sub(href_pattern, r'\2', text)
     text = re.sub(r'\\url\{([^}]+)\}', r'\1', text)
     
-    # Common text styling macros
-    text = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt|underline|small|footnotesize|large|Large|Huge)\{([^}]+)\}', r'\1', text)
-    # Double nested
-    text = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt)\{([^}]+)\}', r'\1', text)
+    # 3. Iteratively peel text styling macros (textbf, textit, emph, underline, etc.)
+    macro_pattern = r'\\(?:textbf|textit|emph|textsc|texttt|underline|small|footnotesize|large|Large|Huge|scshape)\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
+    for _ in range(4):
+        if not re.search(macro_pattern, text):
+            break
+        text = re.sub(macro_pattern, r'\1', text)
     
-    # Inline font switches like {\scshape text} or {\bf text}
-    text = re.sub(r'\{(?:\\[a-zA-Z]+\s+)?([^}]+)\}', r'\1', text)
+    # 4. Inline font switches like {\scshape text} or {\bf text}
+    text = re.sub(r'\{(?:\\[a-zA-Z]+\s+)?([^{}]+)\}', r'\1', text)
     
-    # Remove math mode and generic commands
-    text = re.sub(r'\$[^$]*\$', '', text)
-    text = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?', '', text)
+    # 5. Math mode unwrapping: retain inner content (e.g. $10B -> 10B)
+    text = re.sub(r'\$([^$]*)\$', r'\1', text)
     
-    # Unescape special characters
+    # Remove remaining backslash commands (e.g. \vspace{...}, \hspace{...}, \hfill)
+    text = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', text)
+    
+    # 6. Unescape special characters
     replacements = [
         (r'\\&', '&'),
         (r'\\%', '%'),
@@ -48,7 +57,7 @@ def clean_latex(text: str) -> str:
 
 def extract_hrefs(text: str) -> List[Tuple[str, str]]:
     """Extracts (url, label) pairs from \\href{url}{label}."""
-    return re.findall(r'\\href\{([^}]+)\}\{([^}]+)\}', text)
+    return re.findall(r'\\href\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}', text)
 
 
 class LatexResumeParser:
@@ -112,18 +121,23 @@ class LatexResumeParser:
         basics = Basics()
         
         # 1. Name heuristics
-        # \textbf{\Huge \scshape Kanishk Upadhyay} or \textbf{\Huge Kanishk Upadhyay}
-        name_match = re.search(r'\\textbf\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
-        if not name_match:
-            # {\Huge \scshape Kanishk Upadhyay}
-            name_match = re.search(r'\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
-        if not name_match:
-            # \Huge \textbf{Kanishk Upadhyay} or \name{Kanishk Upadhyay}
-            name_match = re.search(r'\\(?:Huge\s*\\textbf|huge\s*\\textbf|name)\{([^}]+)\}', self.cleaned)
-        if not name_match:
-            name_match = re.search(r'\\author\{([^}]+)\}', self.cleaned)
-        if name_match:
-            basics.name = clean_latex(name_match.group(1))
+        # ModernCV \name{First}{Last}
+        two_part_name = re.search(r'\\name\s*\{([^}]+)\}\s*\{([^}]+)\}', self.cleaned)
+        if two_part_name:
+            basics.name = f"{clean_latex(two_part_name.group(1))} {clean_latex(two_part_name.group(2))}".strip()
+        else:
+            # \textbf{\Huge \scshape Kanishk Upadhyay} or \textbf{\Huge Kanishk Upadhyay}
+            name_match = re.search(r'\\textbf\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
+            if not name_match:
+                # {\Huge \scshape Kanishk Upadhyay}
+                name_match = re.search(r'\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
+            if not name_match:
+                # \Huge \textbf{Kanishk Upadhyay} or \name{Kanishk Upadhyay}
+                name_match = re.search(r'\\(?:Huge\s*\\textbf|huge\s*\\textbf|name)\{([^}]+)\}', self.cleaned)
+            if not name_match:
+                name_match = re.search(r'\\author\{([^}]+)\}', self.cleaned)
+            if name_match:
+                basics.name = clean_latex(name_match.group(1))
             
         # 2. Email
         email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', self.cleaned)
@@ -245,6 +259,42 @@ class LatexResumeParser:
                 ))
             return work_items
 
+        # Pattern 2: \cventry{years}{degree/job}{institution/employer}{city}{optional: grade/...}{description}
+        cventry_pattern = r'\\cventry\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\}|\{[^{}]*\{[^{}]*\}[^{}]*\})*)\}'
+        cv_matches = list(re.finditer(cventry_pattern, body))
+        if cv_matches:
+            for match in cv_matches:
+                dates, role, company, location, notes, desc = [clean_latex(m) for m in match.groups()]
+                bullets = self._parse_bullets(match.group(6))
+                start_date, end_date = self._split_dates(dates)
+                work_items.append(WorkItem(
+                    name=company,
+                    position=role,
+                    location=location,
+                    start_date=start_date,
+                    end_date=end_date,
+                    highlights=bullets
+                ))
+            return work_items
+
+        cventry_pattern = r'\\cventry\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\}|\{[^{}]*\{[^{}]*\}[^{}]*\})*)\}'
+        cv_matches = list(re.finditer(cventry_pattern, body))
+        if cv_matches:
+            for match in cv_matches:
+                dates, degree, inst, loc, notes, desc = [clean_latex(m) for m in match.groups()]
+                bullets = self._parse_bullets(match.group(6))
+                start_date, end_date = self._split_dates(dates)
+                edu_items.append(EducationItem(
+                    institution=inst,
+                    study_type=degree,
+                    area=loc,
+                    start_date=start_date,
+                    end_date=end_date,
+                    score=notes,
+                    highlights=bullets
+                ))
+            return edu_items
+
         # Fallback: custom tabular or \textbf headings
         blocks = re.split(r'(?=\\textbf\{[^}]+\}\s*\\hfill)', body)
         for block in blocks:
@@ -294,6 +344,24 @@ class LatexResumeParser:
                 ))
             return edu_items
 
+        cventry_pattern = r'\\cventry\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\}|\{[^{}]*\{[^{}]*\}[^{}]*\})*)\}'
+        cv_matches = list(re.finditer(cventry_pattern, body))
+        if cv_matches:
+            for match in cv_matches:
+                dates, degree, inst, loc, notes, desc = [clean_latex(m) for m in match.groups()]
+                bullets = self._parse_bullets(match.group(6))
+                start_date, end_date = self._split_dates(dates)
+                edu_items.append(EducationItem(
+                    institution=inst,
+                    study_type=degree,
+                    area=loc,
+                    start_date=start_date,
+                    end_date=end_date,
+                    score=notes,
+                    highlights=bullets
+                ))
+            return edu_items
+
         # Fallback
         lines = [line.strip() for line in body.splitlines() if line.strip()]
         for line in lines:
@@ -320,9 +388,10 @@ class LatexResumeParser:
                 bullets = self._parse_bullets(body[start:end])
 
                 # Split name and tech: \textbf{Pokédex} $|$ \emph{Vanilla JS}
-                parts = [clean_latex(p) for p in header_raw.split('|')]
-                name = parts[0] if parts else "Project"
-                keywords = [k.strip() for k in parts[1].split(',')] if len(parts) > 1 else []
+                clean_header = re.sub(r'\$\s*(?:\\vert|\|)\s*\$', '|', header_raw)
+                parts = [clean_latex(p).replace('$', '').strip() for p in clean_header.split('|')]
+                name = parts[0].rstrip('|').strip() if parts else "Project"
+                keywords = [k.strip() for k in parts[1].split(',') if k.strip()] if len(parts) > 1 else []
                 
                 # Check for URLs
                 hrefs = extract_hrefs(header_raw)

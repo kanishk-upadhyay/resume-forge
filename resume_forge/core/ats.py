@@ -15,6 +15,25 @@ STRONG_ACTION_VERBS = {
     "scaled", "spearheaded", "standardized", "streamlined", "strengthened", "tested"
 }
 
+SHORT_TECH_TERMS = {
+    "c", "go", "r", "js", "ts", "ai", "ml", "ui", "ux", "ci", "cd", "os", "ip", "db", "qa", "ar", "vr"
+}
+
+STOP_WORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
+    "can", "cannot", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for",
+    "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "him", "his",
+    "how", "i", "if", "in", "into", "is", "it", "its", "me", "more", "most", "my", "no", "nor",
+    "not", "of", "off", "on", "once", "only", "or", "other", "our", "ours", "out", "over", "own",
+    "same", "she", "should", "so", "some", "such", "than", "that", "the", "their", "theirs", "them",
+    "then", "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", "up",
+    "very", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom", "why",
+    "with", "would", "you", "your", "yours", "seeking", "looking", "experienced", "required",
+    "preferred", "years", "role", "work", "candidate", "responsibilities", "qualifications", "experience",
+    "needed", "ability", "strong", "plus", "plus+", "knowledge"
+}
+
 
 class ATSAnalyzer:
     """Analyzes resume data for ATS compatibility, action verbs, metrics, and page budgeting."""
@@ -77,7 +96,10 @@ class ATSAnalyzer:
         action_verb_count = 0
         metric_count = 0
 
-        metric_pattern = re.compile(r'\b(?:\d+%(?:\s+reduction|\s+increase|\s+faster|\s+improvement)?|\$\d+|\d+\+?\s*(?:users|requests|ms|seconds|minutes|lines|stars|commits))\b', re.IGNORECASE)
+        metric_pattern = re.compile(
+            r'(?:\b\d+%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks)\b)',
+            re.IGNORECASE
+        )
 
         for bullet in all_bullets:
             words = re.findall(r'\b[a-zA-Z]+\b', bullet.lower())
@@ -95,27 +117,37 @@ class ATSAnalyzer:
             else:
                 strengths.append(f"{int(verb_pct)}% of bullet points start with strong action verbs.")
 
-            if metric_count < 2:
-                suggestions.append("Add measurable outcomes (e.g. 'reduced latency by 40%', 'served 10,000+ users', 'improved throughput').")
-            else:
+            if metric_count >= 1:
                 strengths.append(f"{metric_count} bullets contain quantifiable impact metrics.")
+            if metric_count < 2:
+                suggestions.append("Consider adding more quantifiable metrics (e.g. 'reduced latency by 40%', 'served 10,000+ users', 'improved throughput').")
 
         # 4. Job Description Keyword Matching (Optional)
         matched_keywords = []
         missing_keywords = []
         if job_description:
-            jd_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', job_description.lower()))
+            raw_jd_words = set(re.findall(r'\b[a-zA-Z]{3,}\b|\b[a-zA-Z]{1,2}\b', job_description.lower()))
+            target_keywords = [
+                w for w in raw_jd_words
+                if (w in SHORT_TECH_TERMS or (len(w) >= 3 and w not in STOP_WORDS))
+            ]
             resume_text = " ".join([
                 b.name, b.summary,
                 " ".join(all_bullets),
                 " ".join([k for s in self.data.skills for k in s.keywords])
             ]).lower()
 
-            for kw in jd_words:
-                if kw in resume_text:
-                    matched_keywords.append(kw)
+            for kw in target_keywords:
+                if len(kw) <= 2:
+                    if re.search(rf'\b{re.escape(kw)}\b', resume_text):
+                        matched_keywords.append(kw)
+                    else:
+                        missing_keywords.append(kw)
                 else:
-                    missing_keywords.append(kw)
+                    if kw in resume_text:
+                        matched_keywords.append(kw)
+                    else:
+                        missing_keywords.append(kw)
 
         # 5. Page Budget Estimation (assuming letter size, 10pt font)
         # Roughly 48-52 content lines fit on a single page with 0.4in margins
