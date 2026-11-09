@@ -43,6 +43,13 @@ STOP_WORDS = {
     "needed", "ability", "strong", "plus", "plus+", "knowledge"
 }
 
+AI_CLICHE_WORDS = {
+    "spearheaded", "synergized", "leveraged", "pioneered", "passionate",
+    "results-driven", "hardworking", "detail-oriented", "team-player",
+    "self-starter", "dynamic", "thought-leader", "utilized", "assisted with",
+    "helped to", "responsible for", "seasoned"
+}
+
 
 class ATSAnalyzer:
     """Analyzes resume data for ATS compatibility, action verbs, metrics, and page budgeting."""
@@ -134,9 +141,25 @@ class ATSAnalyzer:
             if metric_count < 2:
                 suggestions.append("Consider adding more quantifiable metrics (e.g. 'reduced latency by 40%', 'served 10,000+ users', 'improved throughput').")
 
-        # 4. Job Description Keyword Matching (Optional)
+        # 4. Anti-AI Buzzword & Cliché Audit
+        found_cliches = []
+        for bullet in all_bullets:
+            bullet_lower = bullet.lower()
+            for cliche in AI_CLICHE_WORDS:
+                if re.search(rf'\b{re.escape(cliche)}\b', bullet_lower):
+                    if cliche not in found_cliches:
+                        found_cliches.append(cliche)
+
+        if found_cliches:
+            score -= min(10, len(found_cliches) * 2)
+            suggestions.append(f"Detected {len(found_cliches)} weak buzzwords ({', '.join(found_cliches)}). Replace with concrete technical verbs (e.g. 'architected', 'diagnosed', 'refactored').")
+        else:
+            strengths.append("Zero AI clichés or generic buzzwords detected.")
+
+        # 5. Job Description Keyword Matching (Optional)
         matched_keywords = []
         missing_keywords = []
+        match_rate = 100
         if job_description:
             jd_lower = job_description.lower()
             special_matched = [tok for tok in SPECIAL_TECH_TOKENS if tok in jd_lower]
@@ -169,7 +192,12 @@ class ATSAnalyzer:
                     else:
                         missing_keywords.append(kw)
 
-        # 5. Page Budget Estimation (assuming letter size, 10pt font)
+            if target_keywords:
+                match_rate = int((len(matched_keywords) / max(1, len(target_keywords))) * 100)
+                if match_rate >= 70:
+                    strengths.append(f"High JD keyword match: {match_rate}% keyword alignment.")
+
+        # 6. Page Budget Estimation (assuming letter size, 10pt font)
         # Roughly 48-52 content lines fit on a single page with 0.4in margins
         estimated_lines = 4  # Header
         estimated_lines += len(self.data.education) * 3 + sum(len(e.highlights) for e in self.data.education)
@@ -188,11 +216,13 @@ class ATSAnalyzer:
 
         return {
             "score": max(20, min(100, score)),
+            "match_rate_percent": match_rate,
             "page_budget_percent": page_budget_pct,
             "page_status": page_status,
             "estimated_lines": estimated_lines,
             "strengths": strengths,
             "suggestions": suggestions,
+            "cliches_detected": found_cliches,
             "matched_keywords": matched_keywords[:15],
             "missing_keywords": missing_keywords[:10]
         }
