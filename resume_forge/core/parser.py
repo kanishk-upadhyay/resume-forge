@@ -122,6 +122,8 @@ def clean_latex(text: str) -> str:
     
     # Remove remaining backslash commands (e.g. \vspace{...}, \hspace{...}, \hfill)
     text = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', text)
+    # Strip unclosed macro prefixes (e.g. \textbf{Text without closing brace)
+    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)$', r'\1', text)
     
     # 9. Unescape special characters
     replacements = [
@@ -158,6 +160,12 @@ def clean_latex(text: str) -> str:
             text = text[1:-1].strip()
         else:
             break
+
+    # Strip any dangling unclosed braces at boundaries
+    if text.startswith('{') and '}' not in text:
+        text = text[1:].strip()
+    if text.endswith('}') and '{' not in text:
+        text = text[:-1].strip()
 
     return text.strip()
 
@@ -201,6 +209,24 @@ def extract_hrefs(text: str) -> List[Tuple[str, str]]:
     return re.findall(r'\\href\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}', text)
 
 
+ROLE_INDICATORS = (
+    "engineer", "developer", "intern", "lead", "architect", "manager", "consultant",
+    "analyst", "specialist", "administrator", "designer", "researcher", "fellow",
+    "scientist", "assistant", "instructor", "officer", "director", "head", "founder",
+    "co-founder", "programmer", "technician", "associate", "trainee"
+)
+
+DEGREE_INDICATORS = (
+    "bachelor", "master", "ph.d", "phd", "b.e", "b.tech", "m.tech", "b.s", "m.s",
+    "b.sc", "m.sc", "associate", "diploma", "degree", "major in", "minor in",
+    "computer science", "engineering"
+)
+
+INSTITUTION_INDICATORS = (
+    "university", "college", "institute", "school", "academy", "polytechnic"
+)
+
+
 class LatexResumeParser:
     """Intelligent multi-strategy parser for LaTeX CVs and Resumes."""
 
@@ -241,6 +267,8 @@ class LatexResumeParser:
                 clean_body = clean_latex(body).strip()
                 if clean_body and not basics.summary:
                     basics.summary = clean_body
+            elif any(k in lower_title for k in ("open source", "open-source", "open_source", "contributions", "community")):
+                open_source.extend(self._parse_open_source(body))
             elif any(k in lower_title for k in ("experience", "employment", "work", "history")):
                 work.extend(self._parse_work(body))
             elif any(k in lower_title for k in ("education", "academics", "qualifications")):
@@ -249,8 +277,6 @@ class LatexResumeParser:
                 projects.extend(self._parse_projects(body))
             elif any(k in lower_title for k in ("skill", "competenc", "technologies", "tech stack")):
                 skills.extend(self._parse_skills(body))
-            elif any(k in lower_title for k in ("open source", "contributions", "community")):
-                open_source.extend(self._parse_open_source(body))
             elif any(k in lower_title for k in ("certificate", "certification", "licenses")):
                 certificates.extend(self._parse_certificates(body))
             elif any(k in lower_title for k in ("award", "honor", "achievement")):
@@ -503,7 +529,7 @@ class LatexResumeParser:
 
     def _split_sections(self) -> List[Tuple[str, str]]:
         """Splits LaTeX content by \\section{...} or \\cvsection{...} headers."""
-        pattern = r'\\(?:section|cvsection)\*?\{([^}]+)\}'
+        pattern = r'\\(?:section|cvsection)\*?\{((?:[^{}]|\{[^{}]*\})*)\}'
         matches = list(re.finditer(pattern, self.cleaned))
         if not matches:
             return []
@@ -653,24 +679,127 @@ class LatexResumeParser:
             if work_items:
                 return work_items
 
-        # Fallback: custom tabular or \textbf headings
-        blocks = re.split(r'(?=\\textbf\{[^}]+\}\s*\\hfill)', body)
-        for block in blocks:
-            if not block.strip():
+        # Fallback: custom tabular, two-line role headers, or \textbf headings
+        lines = body.splitlines()
+        block_indices = []
+
+        for idx, line in enumerate(lines):
+            line_s = line.strip()
+            if not line_s:
                 continue
-            head_match = re.search(r'\\textbf\{([^}]+)\}\s*\\hfill\s*([^\\]+)', block)
-            if head_match:
-                title = clean_latex(head_match.group(1))
-                dates = clean_latex(head_match.group(2))
-                bullets = self._parse_bullets(block)
-                start_date, end_date = self._split_dates(dates)
-                work_items.append(WorkItem(
-                    name=title,
-                    position="",
-                    start_date=start_date,
-                    end_date=end_date,
-                    highlights=bullets
-                ))
+            m = re.match(r'^(?:\\item\s*)?\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}', line_s)
+            if m:
+                is_header = False
+                if r'\hfill' in line_s or any(sep in line_s for sep in ('|', r'\cdot', r'\vert', '--', '–')):
+                    is_header = True
+                elif idx + 1 < len(lines) and any(kw in lines[idx + 1] for kw in (r'\begin{itemize}', r'\begin{enumerate}', r'\resumeItemListStart', r'\textit')):
+                    is_header = True
+                if is_header:
+                    block_indices.append(idx)
+
+        if not block_indices:
+            blocks = re.split(r'(?=\\textbf\{[^}]+\}\s*\\hfill)', body)
+            for block in blocks:
+                if not block.strip():
+                    continue
+                head_match = re.search(r'\\textbf\{([^}]+)\}\s*\\hfill\s*([^\\]+)', block)
+                if head_match:
+                    title = clean_latex(head_match.group(1))
+                    dates = clean_latex(head_match.group(2))
+                    bullets = self._parse_bullets(block)
+                    start_date, end_date = self._split_dates(dates)
+                    work_items.append(WorkItem(
+                        name=title,
+                        position="",
+                        start_date=start_date,
+                        end_date=end_date,
+                        highlights=bullets
+                    ))
+            return work_items
+
+        for i, start_idx in enumerate(block_indices):
+            end_idx = block_indices[i + 1] if i + 1 < len(block_indices) else len(lines)
+            header_line = lines[start_idx].strip()
+            block_text = "\n".join(lines[start_idx:end_idx])
+
+            header_lines = [header_line]
+            for sub_i in range(start_idx + 1, min(start_idx + 4, end_idx)):
+                l = lines[sub_i].strip()
+                if l.startswith(r'\begin') or l.startswith(r'\item') or l.startswith(r'\resumeItem'):
+                    break
+                if l:
+                    header_lines.append(l)
+
+            bullets = self._parse_bullets(block_text)
+
+            l1 = header_lines[0]
+            l1_left, l1_right = "", ""
+            if r'\hfill' in l1:
+                p = l1.split(r'\hfill', 1)
+                l1_left, l1_right = clean_latex(p[0]), clean_latex(p[1])
+            else:
+                l1_left = clean_latex(l1)
+
+            l2_left, l2_right = "", ""
+            if len(header_lines) > 1:
+                l2 = header_lines[1]
+                if r'\hfill' in l2:
+                    p = l2.split(r'\hfill', 1)
+                    l2_left, l2_right = clean_latex(p[0]), clean_latex(p[1])
+                else:
+                    l2_left = clean_latex(l2)
+
+            company = ""
+            position = ""
+            dates = ""
+            location = ""
+
+            if any(sep in l1_left for sep in ('|', '•', ' - ', ' – ')):
+                parts = [p.strip() for p in re.split(r'[|•]|\s+[-–]\s+', l1_left) if p.strip()]
+                if len(parts) >= 2:
+                    if any(ind in parts[1].lower() for ind in ROLE_INDICATORS):
+                        company, position = parts[0], parts[1]
+                    elif any(ind in parts[0].lower() for ind in ROLE_INDICATORS):
+                        position, company = parts[0], parts[1]
+                    else:
+                        company, position = parts[0], parts[1]
+
+            if len(header_lines) > 1 and l2_left:
+                if any(ind in l2_left.lower() for ind in ROLE_INDICATORS):
+                    position = l2_left
+                    company = company or l1_left
+                elif any(ind in l1_left.lower() for ind in ROLE_INDICATORS):
+                    position = l1_left
+                    company = company or l2_left
+                else:
+                    company = company or l1_left
+                    position = position or l2_left
+
+                for r_text in (l1_right, l2_right):
+                    if not r_text:
+                        continue
+                    if re.search(r'\b(?:19\d{2}|20\d{2}|present|ongoing|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b', r_text, re.I):
+                        dates = r_text
+                    else:
+                        location = r_text
+            else:
+                company = company or l1_left
+                if l1_right:
+                    if re.search(r'\b(?:19\d{2}|20\d{2}|present|ongoing|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b', l1_right, re.I):
+                        dates = l1_right
+                    else:
+                        location = l1_right
+
+            start_date, end_date = self._split_dates(dates)
+
+            work_items.append(WorkItem(
+                name=company,
+                position=position,
+                location=location,
+                start_date=start_date,
+                end_date=end_date,
+                highlights=bullets
+            ))
 
         return work_items
 
@@ -775,12 +904,120 @@ class LatexResumeParser:
             if edu_items:
                 return edu_items
 
-        # Fallback
-        lines = [line.strip() for line in body.splitlines() if line.strip()]
-        for line in lines:
-            c = clean_latex(line)
-            if len(c) > 5 and any(k in c.lower() for k in ("university", "bachelor", "degree", "college", "school", "b.e", "b.tech")):
-                edu_items.append(EducationItem(institution=c))
+        # Fallback: grouped multi-line education blocks
+        lines = body.splitlines()
+        block_indices = []
+
+        for idx, line in enumerate(lines):
+            line_s = line.strip()
+            if not line_s:
+                continue
+            m = re.match(r'^(?:\\item\s*)?\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}', line_s)
+            if m:
+                is_header = False
+                if r'\hfill' in line_s or any(sep in line_s for sep in ('|', r'\cdot', r'\vert', '--', '–')):
+                    is_header = True
+                elif idx + 1 < len(lines) and any(kw in lines[idx + 1] for kw in (r'\begin{itemize}', r'\begin{enumerate}', r'\resumeItemListStart', r'\textit')):
+                    is_header = True
+                elif any(ind in line_s.lower() for ind in INSTITUTION_INDICATORS + DEGREE_INDICATORS):
+                    is_header = True
+                if is_header:
+                    block_indices.append(idx)
+
+        if not block_indices:
+            for idx, line in enumerate(lines):
+                line_s = line.strip()
+                if any(ind in line_s.lower() for ind in INSTITUTION_INDICATORS):
+                    block_indices.append(idx)
+
+        if not block_indices:
+            for line in lines:
+                c = clean_latex(line)
+                if len(c) > 5 and any(k in c.lower() for k in ("university", "bachelor", "degree", "college", "school", "b.e", "b.tech")):
+                    edu_items.append(EducationItem(institution=c))
+            return edu_items
+
+        for i, start_idx in enumerate(block_indices):
+            end_idx = block_indices[i + 1] if i + 1 < len(block_indices) else len(lines)
+            header_line = lines[start_idx].strip()
+            block_text = "\n".join(lines[start_idx:end_idx])
+
+            header_lines = [header_line]
+            for sub_i in range(start_idx + 1, min(start_idx + 4, end_idx)):
+                l = lines[sub_i].strip()
+                if l.startswith(r'\begin') or l.startswith(r'\item') or l.startswith(r'\resumeItem'):
+                    break
+                if l:
+                    header_lines.append(l)
+
+            bullets = self._parse_bullets(block_text)
+
+            l1 = header_lines[0]
+            l1_left, l1_right = "", ""
+            if r'\hfill' in l1:
+                p = l1.split(r'\hfill', 1)
+                l1_left, l1_right = clean_latex(p[0]), clean_latex(p[1])
+            else:
+                l1_left = clean_latex(l1)
+
+            l2_left, l2_right = "", ""
+            if len(header_lines) > 1:
+                l2 = header_lines[1]
+                if r'\hfill' in l2:
+                    p = l2.split(r'\hfill', 1)
+                    l2_left, l2_right = clean_latex(p[0]), clean_latex(p[1])
+                else:
+                    l2_left = clean_latex(l2)
+
+            inst = ""
+            degree = ""
+            area = ""
+            dates = ""
+
+            if any(sep in l1_left for sep in ('|', '•', ' - ', ' – ')):
+                parts = [p.strip() for p in re.split(r'[|•]|\s+[-–]\s+', l1_left) if p.strip()]
+                if len(parts) >= 2:
+                    if any(ind in parts[0].lower() for ind in INSTITUTION_INDICATORS):
+                        inst, degree = parts[0], parts[1]
+                    else:
+                        degree, inst = parts[0], parts[1]
+
+            if len(header_lines) > 1 and l2_left:
+                if any(ind in l2_left.lower() for ind in DEGREE_INDICATORS):
+                    degree = l2_left
+                    inst = inst or l1_left
+                elif any(ind in l1_left.lower() for ind in DEGREE_INDICATORS):
+                    degree = l1_left
+                    inst = inst or l2_left
+                else:
+                    inst = inst or l1_left
+                    degree = degree or l2_left
+
+                for r_text in (l1_right, l2_right):
+                    if not r_text:
+                        continue
+                    if re.search(r'\b(?:19\d{2}|20\d{2}|present|ongoing|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b', r_text, re.I):
+                        dates = r_text
+                    else:
+                        area = r_text
+            else:
+                inst = inst or l1_left
+                if l1_right:
+                    if re.search(r'\b(?:19\d{2}|20\d{2}|present|ongoing|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b', l1_right, re.I):
+                        dates = l1_right
+                    else:
+                        area = l1_right
+
+            start_date, end_date = self._split_dates(dates)
+
+            edu_items.append(EducationItem(
+                institution=inst,
+                study_type=degree,
+                area=area,
+                start_date=start_date,
+                end_date=end_date,
+                highlights=bullets
+            ))
 
         return edu_items
 
@@ -843,6 +1080,92 @@ class LatexResumeParser:
                 ))
             return projects
 
+        # Pattern 3: Standard LaTeX project headings (e.g. \textbf{Project} $|$ \textit{Stack} \hfill link/date)
+        lines = body.splitlines()
+        block_indices = []
+
+        for idx, line in enumerate(lines):
+            line_s = line.strip()
+            if not line_s:
+                continue
+            m = re.match(r'^(?:\\item\s*)?\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}', line_s)
+            if m:
+                is_header = False
+                if r'\hfill' in line_s or any(sep in line_s for sep in ('|', r'\cdot', r'\vert', '--', '–')):
+                    is_header = True
+                elif idx + 1 < len(lines) and any(kw in lines[idx + 1] for kw in (r'\begin{itemize}', r'\begin{enumerate}', r'\resumeItemListStart')):
+                    is_header = True
+                elif r'\href' in line_s:
+                    is_header = True
+
+                if is_header:
+                    block_indices.append(idx)
+
+        if block_indices:
+            for i, start_idx in enumerate(block_indices):
+                end_idx = block_indices[i + 1] if i + 1 < len(block_indices) else len(lines)
+                header_line = lines[start_idx].strip()
+                block_text = "\n".join(lines[start_idx:end_idx])
+
+                header_lines = [header_line]
+                for sub_i in range(start_idx + 1, min(start_idx + 3, end_idx)):
+                    l = lines[sub_i].strip()
+                    if l.startswith(r'\begin') or l.startswith(r'\item') or l.startswith(r'\resumeItem'):
+                        break
+                    if l:
+                        header_lines.append(l)
+
+                full_header = " ".join(header_lines)
+                bullets = self._parse_bullets(block_text)
+
+                hrefs = extract_hrefs(full_header)
+                url = hrefs[0][0] if hrefs else ""
+
+                m_name = re.search(r'\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}', header_line)
+                name = clean_latex(m_name.group(1)) if m_name else "Project"
+
+                keywords = []
+                date_str = ""
+
+                if r'\hfill' in full_header:
+                    parts = full_header.split(r'\hfill', 1)
+                    left_side = parts[0]
+                    right_side = parts[1]
+                    clean_right = clean_latex(right_side)
+                    date_candidates = [p.strip() for p in re.split(r'[,|•]', clean_right) if p.strip()]
+                    for cand in date_candidates:
+                        if re.search(r'\b(?:19\d{2}|20\d{2}|present|ongoing)\b', cand, re.I):
+                            date_str = cand
+                            break
+                    if not date_str and (any(c.isdigit() for c in clean_right) or any(m in clean_right.lower() for m in ("present", "ongoing"))):
+                        date_str = clean_right
+
+                    left_rem = left_side[m_name.end():] if m_name and m_name.end() <= len(left_side) else left_side
+                else:
+                    left_rem = full_header[m_name.end():] if m_name and m_name.end() <= len(full_header) else full_header
+
+                left_rem = re.sub(r'\\href\{[^}]*\}\{[^}]*\}', '', left_rem)
+                left_rem = re.sub(r'\$\s*(?:\\vert|\||\\cdot)\s*\$', '|', left_rem)
+                left_rem = re.sub(r'\\(?:cdot|textbar)\b', '|', left_rem)
+                left_rem = clean_latex(left_rem).replace('$', '').strip()
+                left_rem = left_rem.lstrip('|–-• \t').rstrip('|–-• \t')
+
+                if left_rem:
+                    keywords = [k.strip() for k in re.split(r'[,|•;]', left_rem) if k.strip()]
+
+                start_date, end_date = self._split_dates(date_str)
+
+                projects.append(ProjectItem(
+                    name=name,
+                    keywords=keywords,
+                    url=url,
+                    start_date=start_date,
+                    end_date=end_date,
+                    highlights=bullets
+                ))
+
+            return projects
+
         return projects
 
     def _parse_skills(self, body: str) -> List[SkillItem]:
@@ -859,7 +1182,7 @@ class LatexResumeParser:
             if len(args) >= 2:
                 cat_name = clean_latex(args[0]).rstrip(':').strip()
                 raw_items = clean_latex(args[1])
-                keywords = [k.strip() for k in re.split(r'[,|•]', raw_items) if k.strip()]
+                keywords = [k.strip() for k in re.split(r'[,|•;]', raw_items) if k.strip()]
                 if keywords:
                     skills.append(SkillItem(name=cat_name, keywords=keywords))
                 pos = next_pos
@@ -868,41 +1191,49 @@ class LatexResumeParser:
 
         if skills:
             return skills
-        
-        # 2. Line-based, itemized, and tabular patterns
-        lines = body.splitlines()
-        for line in lines:
-            line_clean = line.strip()
-            if not line_clean:
-                continue
 
-            # Tabular pattern: \textbf{Languages:} & Python, C++, Go \\
-            tab_match = re.search(r'\\textbf\{([^}]+)\}:?\s*&\s*([^\\]+)', line_clean)
+        # 2. General itemized, tabular, or line-based patterns
+        if r'\item' in body:
+            top_chunks = re.split(r'\\item\b', body)[1:]
+        else:
+            top_chunks = [body]
+
+        lines_to_process = []
+        for chunk in top_chunks:
+            c = re.split(r'\\end\{(?:itemize|enumerate|cvitems|tightemize|tabular)\}', chunk)[0].strip()
+            sub_lines = re.split(r'(?:\\\\|\n)+', c)
+            for sl in sub_lines:
+                if sl.strip():
+                    lines_to_process.append(sl.strip())
+
+        for seg in lines_to_process:
+            tb_match = re.search(r'\\textbf\b', seg)
+            if tb_match:
+                args, next_pos = extract_braced_args(seg, tb_match.end(), 1)
+                if args:
+                    cat_name = clean_latex(args[0]).rstrip(':').strip()
+                    remainder = seg[next_pos:].strip()
+                    if remainder.startswith('&'):
+                        remainder = remainder[1:].strip()
+                    remainder = remainder.lstrip(':- \t')
+                    if remainder.startswith('{'):
+                        rem_args, _ = extract_braced_args(remainder, 0, 1)
+                        if rem_args:
+                            remainder = rem_args[0].lstrip(':- \t')
+
+                    raw_items = clean_latex(remainder)
+                    keywords = [k.strip() for k in re.split(r'[,|•;]', raw_items) if k.strip()]
+                    if cat_name and keywords:
+                        skills.append(SkillItem(name=cat_name, keywords=keywords))
+                    continue
+
+            tab_match = re.search(r'([^&]+)&\s*([^\\]+)', seg)
             if tab_match:
                 cat_name = clean_latex(tab_match.group(1)).rstrip(':').strip()
                 raw_items = clean_latex(tab_match.group(2))
-                keywords = [k.strip() for k in re.split(r'[,|•]', raw_items) if k.strip()]
-                if keywords:
+                keywords = [k.strip() for k in re.split(r'[,|•;]', raw_items) if k.strip()]
+                if cat_name and keywords:
                     skills.append(SkillItem(name=cat_name, keywords=keywords))
-                continue
-            
-            # Match \textbf{Category}{: Item1, Item2} or \textbf{Category}: Item1, Item2
-            cat_match = re.search(r'\\textbf\{([^}]+)\}\s*(?:\{:?\s*|:\s*)([^}\\]+)', line_clean)
-            if cat_match:
-                cat_name = clean_latex(cat_match.group(1)).rstrip(':').strip()
-                raw_items = clean_latex(cat_match.group(2))
-                keywords = [k.strip() for k in re.split(r'[,|•]', raw_items) if k.strip()]
-                if keywords:
-                    skills.append(SkillItem(name=cat_name, keywords=keywords))
-            else:
-                # \item \textbf{Category:} Item1, Item2
-                simple_match = re.search(r'\\item\s*\\textbf\{([^}]+)\}\s*[:\-]\s*(.*)', line_clean)
-                if simple_match:
-                    cat_name = clean_latex(simple_match.group(1)).rstrip(':').strip()
-                    raw_items = clean_latex(simple_match.group(2))
-                    keywords = [k.strip() for k in re.split(r'[,|•]', raw_items) if k.strip()]
-                    if keywords:
-                        skills.append(SkillItem(name=cat_name, keywords=keywords))
 
         return skills
 
@@ -917,14 +1248,108 @@ class LatexResumeParser:
                 a1, a2, a3, a4 = [clean_latex(m) for m in match.groups()]
                 start = match.end()
                 end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
-                bullets = self._parse_bullets(body[start:end])
+                sub_body = body[start:end]
+                bullets = self._parse_bullets(sub_body)
+                hrefs = extract_hrefs(match.group(0) + " " + sub_body[:200])
+                url = hrefs[0][0] if hrefs else ""
                 os_items.append(OpenSourceItem(
                     project=a1,
                     role=a3,
+                    url=url,
                     highlights=bullets
                 ))
             return os_items
-            
+
+        # 2. \resumeProjectHeading pattern
+        pos = 0
+        while True:
+            idx = body.find(r'\resumeProjectHeading', pos)
+            if idx == -1:
+                break
+            args, next_pos = extract_braced_args(body, idx + len(r'\resumeProjectHeading'), 2)
+            if len(args) >= 2:
+                header_raw = args[0]
+                next_heading_idx = body.find(r'\resumeProjectHeading', next_pos)
+                block_end = next_heading_idx if next_heading_idx != -1 else len(body)
+                bullets = self._parse_bullets(body[next_pos:block_end])
+
+                clean_header = re.sub(r'\$\s*(?:\\vert|\|)\s*\$', '|', header_raw)
+                parts = [clean_latex(p).replace('$', '').strip() for p in clean_header.split('|')]
+                proj = parts[0].rstrip('|').strip() if parts else "Project"
+                role = parts[1].strip() if len(parts) > 1 else ""
+                hrefs = extract_hrefs(header_raw)
+                url = hrefs[0][0] if hrefs else ""
+
+                os_items.append(OpenSourceItem(
+                    project=proj,
+                    role=role,
+                    url=url,
+                    highlights=bullets
+                ))
+                pos = next_pos
+            else:
+                pos = idx + len(r'\resumeProjectHeading')
+
+        if os_items:
+            return os_items
+
+        # 3. Standard LaTeX headings: blocks starting with \textbf{...} or \item \textbf{...}
+        lines = body.splitlines()
+        block_indices = []
+        for idx, line in enumerate(lines):
+            line_s = line.strip()
+            if not line_s:
+                continue
+            m = re.match(r'^(?:\\item\s*)?\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}', line_s)
+            if m:
+                is_header = False
+                if r'\hfill' in line_s or any(sep in line_s for sep in ('|', r'\cdot', r'\vert', '--', '–')):
+                    is_header = True
+                elif idx + 1 < len(lines) and any(kw in lines[idx + 1] for kw in (r'\begin{itemize}', r'\begin{enumerate}', r'\resumeItemListStart')):
+                    is_header = True
+                elif r'\href' in line_s:
+                    is_header = True
+                elif line_s.startswith(r'\item'):
+                    is_header = True
+                if is_header:
+                    block_indices.append(idx)
+
+        if block_indices:
+            for i, start_idx in enumerate(block_indices):
+                end_idx = block_indices[i + 1] if i + 1 < len(block_indices) else len(lines)
+                header_line = lines[start_idx].strip()
+                block_text = "\n".join(lines[start_idx:end_idx])
+
+                bullets = self._parse_bullets(block_text)
+
+                m_tb = re.search(r'\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}(.*)', header_line)
+                proj_name = clean_latex(m_tb.group(1)) if m_tb else "Project"
+                after_name = m_tb.group(2) if m_tb else ""
+
+                hrefs = extract_hrefs(block_text)
+                url = hrefs[0][0] if hrefs else ""
+
+                role = ""
+                clean_after = re.sub(r'\\href\{[^}]*\}\{[^}]*\}', '', after_name)
+                clean_after = re.sub(r'\$\s*(?:\\vert|\|)\s*\$', '|', clean_after)
+                clean_after = clean_latex(clean_after).replace('$', '').strip()
+                clean_after = clean_after.lstrip('|–-• \t').rstrip('|–-• \t')
+
+                if clean_after:
+                    if bullets:
+                        role = clean_after
+                    else:
+                        bullets = [clean_after]
+
+                os_items.append(OpenSourceItem(
+                    project=proj_name,
+                    role=role,
+                    url=url,
+                    highlights=bullets
+                ))
+
+            return os_items
+
         bullets = self._parse_bullets(body)
         if bullets:
             os_items.append(OpenSourceItem(project="Community Contributions", highlights=bullets))
