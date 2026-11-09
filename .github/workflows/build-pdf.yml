@@ -9,17 +9,20 @@ on:
       - 'resume_forge/**'
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-release:
     runs-on: macos-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Compile CERN Resume to PDF
         run: |
@@ -30,7 +33,7 @@ jobs:
           ./bin/resume-forge variant compile systems_lowlevel -o kanishk_systems_resume.pdf
 
       - name: Upload PDF Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compiled-resumes
           path: |

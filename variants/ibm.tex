@@ -1,0 +1,91 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
+    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} \\ \vspace{2pt}
+    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
+    \href{https://gitlab.com/kanishk0}{GitLab: gitlab.com/kanishk0} \ $\cdot$ \ 
+    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22} \ $\cdot$ \ 
+    \href{https://kanishk.pages.dev/treasures}{Portfolio: kanishk.pages.dev}
+\end{center}
+
+\vspace{-6pt}
+\section{Profile}
+Research-oriented software developer focused on multimodal foundation models, agentic workflows, and scalable API platforms. Experienced in deploying vision-language extraction pipelines (Gemini Flash), managing cloud Linux infrastructure, and contributing peer-reviewed code to core GitLab. Strong foundation in Python, C, data structures, and distributed services. Available for 2027 Research Software Engineering internship.
+
+\section{Technical Skills}
+\begin{itemize}
+    \item \textbf{Languages:} Python, C, TypeScript, JavaScript, SQL, Bash
+    \item \textbf{AI \& Frameworks:} Multimodal Extraction Pipelines, FastAPI, Django, Flask, PyTorch Foundations, Transformers/LLMs
+    \item \textbf{Databases \& Cloud:} PostgreSQL, Supabase, MySQL, Relational Modeling, AWS, Linux VPS, Nginx, Docker
+    \item \textbf{Engineering Practices:} Git, GitLab CI/CD, GitHub Actions, systemd, Automated Testing, Agile Code Review
+\end{itemize}
+
+\section{Selected Projects}
+\textbf{SmartSpend — Multimodal AI Pipeline} \ $\cdot$ \ \textit{FastAPI, React 19, Supabase (PostgreSQL), Gemini 2.5 Flash} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
+\begin{itemize}
+    \item Built an intelligent expense tracker with automated receipt ingestion: handles handwritten, skewed, or rotated receipt images, extracting structured line-item expense data using a multimodal Gemini 2.5 Flash pipeline with fallback redundancy.
+    \item Implemented real-time multi-currency exchange calculations, category-based spending analytics, and asynchronous database interactions in FastAPI.
+\end{itemize}
+
+\textbf{Systems \& C Foundations} \ $\cdot$ \ \textit{Pure C, Harvard CS50x}
+\begin{itemize}
+    \item Independently implemented core computer science algorithms and data structures from scratch in C: manual memory management (\texttt{malloc}/\texttt{free}), pointer arithmetic, hash tables with collision chaining, tries, and binary search trees.
+\end{itemize}
+
+\textbf{Pokédex Engine — Offline-First Architecture} \ $\cdot$ \ \textit{Vanilla JavaScript, Service Workers, REST API}
+\begin{itemize}
+    \item Built an offline-first single-page application using Service Worker caching, an in-memory LRU cache with TTL eviction, and a custom Levenshtein-distance fuzzy search algorithm for resilient real-time offline queries.
+\end{itemize}
+
+\section{Experience}
+\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
+\textit{Software Developer Intern} \hfill \textit{Remote}
+\begin{itemize}
+    \item Developed core clinical history-taking and diagnostic intake modules using \textbf{Next.js}, \textbf{Django}, and \textbf{PostgreSQL}, handling multi-step medical lifecycles and role-based permissions.
+    \item Designed high-throughput RESTful endpoints and optimized multi-table relational queries, preventing N+1 performance bottlenecks.
+\end{itemize}
+
+\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
+\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
+\begin{itemize}
+    \item Built full-stack web applications utilizing \textbf{React} and \textbf{Redux Toolkit} on the frontend with \textbf{Flask} on the backend.
+    \item Managed Linux VPS servers: configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL certificates, and maintained automated CI/CD deployment pipelines.
+\end{itemize}
+
+\section{Open-Source Contributions}
+\textbf{GitLab Core} \textit{(Monorepo Contributor -- Vue.js)} \hfill \textit{2025}
+\begin{itemize}
+    \item Authored and merged peer-reviewed contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens across enterprise workflows.
+    \item Navigated rigorous enterprise code reviews, strict ESLint/Stylelint constraints, and distributed CI/CD test suites for a platform serving millions.
+\end{itemize}
+
+\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
+\begin{itemize}
+    \item Diagnosed and resolved a concurrency race condition in \texttt{swift-log} during terminal resize (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}) and corrected layout rendering geometry (\href{https://github.com/jayadamsmorgan/Yatoro/pull/51}{PR \#51}).
+\end{itemize}
+
+\section{Education}
+\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
+Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
+\textit{Relevant Coursework:} Operating Systems, Data Structures \& Algorithms, Database Management Systems, Computer Networks, Software Engineering. Independent completion of Harvard CS50x.
+
+\end{document}

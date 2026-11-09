@@ -1,0 +1,88 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
+    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} \\ \vspace{2pt}
+    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
+    \href{https://gitlab.com/kanishk0}{GitLab: gitlab.com/kanishk0} \ $\cdot$ \ 
+    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22} \ $\cdot$ \ 
+    \href{https://kanishk.pages.dev/treasures}{Portfolio: kanishk.pages.dev}
+\end{center}
+
+\vspace{-6pt}
+\section{Profile}
+Full-stack software developer and open-source contributor with deep expertise in API design, developer tooling, and modern frontend design systems. Authored and merged core design token pull requests in the GitLab monorepo, built high-throughput RESTful services with Next.js/Django/FastAPI, and administered cloud Linux environments. Passionate about API-first engineering, developer experience, and clean system design. Available for 2027 software engineering internship.
+
+\section{Technical Skills}
+\begin{itemize}
+    \item \textbf{API Engineering \& Back End:} RESTful API Architecture, FastAPI, Django, Flask, Postman, Microservices, Asynchronous Tasks
+    \item \textbf{Frontend \& Design Systems:} Next.js, React 19, TypeScript, Vue.js, Redux Toolkit, Design Tokens, Tailwind CSS, Vite
+    \item \textbf{Databases \& Cloud:} PostgreSQL, MySQL, Supabase, Relational Modeling, AWS, Linux VPS, Nginx, Docker
+    \item \textbf{Developer Tooling:} Git, GitLab CI/CD, GitHub Actions, Automated Testing, Jest, Agile Code Review
+\end{itemize}
+
+\section{Open-Source Contributions}
+\textbf{GitLab Core} \textit{(Front-End Contributor -- Vue.js \& Design Tokens)} \hfill \textit{2025}
+\begin{itemize}
+    \item Authored and merged peer-reviewed contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens to standardize UI styling across enterprise workflows.
+    \item Navigated rigorous enterprise code reviews, strict ESLint/Stylelint constraints, and distributed CI/CD test suites for a platform serving millions of developers.
+    \item Tracked community engineering roadmaps via \href{https://gitlab.com/gitlab-community/meta/-/work_items/905}{GitLab Meta \#905}.
+\end{itemize}
+
+\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
+\begin{itemize}
+    \item Engineered an interactive CLI help command and onboarding documentation to streamline developer experience (\href{https://github.com/jayadamsmorgan/Yatoro/pull/53}{PR \#53}).
+    \item Diagnosed and resolved a concurrency race condition during terminal resize (\texttt{SIGWINCH}) by patching the \texttt{swift-log} dependency (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}) and corrected layout rendering geometry (\href{https://github.com/jayadamsmorgan/Yatoro/pull/51}{PR \#51}).
+\end{itemize}
+
+\section{Experience}
+\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
+\textit{Software Developer Intern} \hfill \textit{Remote}
+\begin{itemize}
+    \item Built responsive clinic management modules in \textbf{Next.js}, \textbf{Django}, and \textbf{PostgreSQL}, handling multi-step medical intake workflows and role-based permissions.
+    \item Designed high-throughput RESTful endpoints and optimized relational queries to prevent performance bottlenecks.
+\end{itemize}
+
+\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
+\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
+\begin{itemize}
+    \item Developed full-stack web applications using \textbf{React} and \textbf{Redux Toolkit} on the frontend with \textbf{Flask} on the backend.
+    \item Managed Linux VPS servers: configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL, and maintained automated CI/CD deployment pipelines.
+\end{itemize}
+
+\section{Selected Projects}
+\textbf{SmartSpend — API & AI Pipeline} \ $\cdot$ \ \textit{FastAPI, React 19, Supabase (PostgreSQL)} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
+\begin{itemize}
+    \item Built a high-performance RESTful backend in FastAPI with asynchronous database interactions on Supabase PostgreSQL.
+    \item Integrated automated receipt ingestion via a multimodal Gemini 2.5 Flash pipeline with fallback redundancy.
+\end{itemize}
+
+\textbf{Sector 7 — Marketplace Frontend} \ $\cdot$ \ \textit{React, Redux Toolkit, REST APIs}
+\begin{itemize}
+    \item Built a modular multi-page interface featuring centralized Redux state slices, asynchronous thunk middleware, and client-side route guards.
+\end{itemize}
+
+\section{Education}
+\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
+Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
+\textit{Relevant Coursework:} Software Engineering, Data Structures \& Algorithms, Database Management Systems, Operating Systems. Independent completion of Harvard CS50x.
+
+\end{document}

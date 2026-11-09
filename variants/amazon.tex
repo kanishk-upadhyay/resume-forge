@@ -1,0 +1,92 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
+    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} \\ \vspace{2pt}
+    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
+    \href{https://gitlab.com/kanishk0}{GitLab: gitlab.com/kanishk0} \ $\cdot$ \ 
+    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22} \ $\cdot$ \ 
+    \href{https://kanishk.pages.dev/treasures}{Portfolio: kanishk.pages.dev}
+\end{center}
+
+\vspace{-6pt}
+\section{Profile}
+Software developer with production experience building scalable full-stack applications, high-throughput RESTful APIs, and relational database architectures. Grounded in object-oriented design, data structures, and algorithmic optimization through pure C implementations and production internships. Proven track record handling complex distributed state, multithreaded debugging, and cloud infrastructure on AWS. Available for 2027 SDE internship.
+
+\section{Technical Skills}
+\begin{itemize}
+    \item \textbf{Languages:} Python, TypeScript, JavaScript, C, Java, Swift, SQL, HTML5/CSS3
+    \item \textbf{Backend \& APIs:} Django, FastAPI, Flask, RESTful API Design, Microservices, Object-Oriented Design (OOP)
+    \item \textbf{Databases \& Cloud:} PostgreSQL, MySQL, Supabase, SQLite, Relational Modeling, ACID Transactions, AWS, Nginx
+    \item \textbf{Frontend \& Tools:} Next.js, React 19, Redux Toolkit, Git, GitLab CI/CD, Docker, Linux (POSIX), Automated Testing
+\end{itemize}
+
+\section{Experience}
+\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
+\textit{Software Developer Intern} \hfill \textit{Remote}
+\begin{itemize}
+    \item Architected core backend services and database schemas for a paperless clinic platform using \textbf{Django}, \textbf{Next.js}, and \textbf{PostgreSQL}, handling patient history and clinical intake lifecycles.
+    \item Implemented granular Role-Based Access Control (RBAC) to enforce strict medical data confidentiality.
+    \item Designed high-throughput RESTful endpoints and optimized multi-table relational queries with database indexing, eliminating N+1 overhead and ensuring predictable query latency.
+\end{itemize}
+
+\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
+\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
+\begin{itemize}
+    \item Built full-stack web applications utilizing \textbf{React} and \textbf{Redux Toolkit} on the frontend with \textbf{Flask} on the backend.
+    \item Designed relational schemas in MySQL with foreign-key constraints and parameterized queries, preventing SQL injection vulnerabilities.
+    \item Managed cloud infrastructure on AWS and Linux VPS: configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL, and maintained automated CI/CD deployment pipelines.
+\end{itemize}
+
+\section{Selected Projects}
+\textbf{SmartSpend — AI Expense Engine} \ $\cdot$ \ \textit{FastAPI, React 19, Supabase (PostgreSQL)} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
+\begin{itemize}
+    \item Engineered an intelligent receipt scanning service: handles handwritten, skewed, or rotated receipt images, extracting structured line-item expense data using a multimodal Gemini 2.5 Flash pipeline with fallback redundancy.
+    \item Built a high-performance REST backend in FastAPI with asynchronous database interactions on Supabase PostgreSQL.
+\end{itemize}
+
+\textbf{Sector 7 — Marketplace Platform} \ $\cdot$ \ \textit{React, Redux Toolkit, RESTful Services}
+\begin{itemize}
+    \item Built a modular multi-page interface featuring centralized Redux state slices, asynchronous thunk middleware, and client-side route guards.
+\end{itemize}
+
+\textbf{Systems \& C Foundations} \ $\cdot$ \ \textit{Pure C, Harvard CS50x}
+\begin{itemize}
+    \item Implemented core algorithms and data structures from scratch in C: manual memory management (\texttt{malloc}/\texttt{free}), pointer arithmetic, hash tables with collision chaining, tries, and binary search trees.
+\end{itemize}
+
+\section{Open-Source Contributions}
+\textbf{GitLab Core} \textit{(Monorepo Contributor -- Vue.js)} \hfill \textit{2025}
+\begin{itemize}
+    \item Merged peer-reviewed contributions into core GitLab (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), navigating automated CI/CD test suites on a platform serving millions.
+\end{itemize}
+
+\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
+\begin{itemize}
+    \item Diagnosed and patched a concurrency race condition in \texttt{swift-log} during window resize events (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}) and fixed off-by-one song index arithmetic (\href{https://github.com/jayadamsmorgan/Yatoro/pull/56}{PR \#56}).
+\end{itemize}
+
+\section{Education}
+\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
+Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
+\textit{Coursework:} Data Structures \& Algorithms, Object-Oriented Programming, Database Management Systems, Operating Systems, Computer Networks, Software Engineering. Independent completion of Harvard CS50x.
+
+\end{document}

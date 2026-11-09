@@ -1,0 +1,87 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
+    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} \\ \vspace{2pt}
+    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
+    \href{https://gitlab.com/kanishk0}{GitLab: gitlab.com/kanishk0} \ $\cdot$ \ 
+    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22} \ $\cdot$ \ 
+    \href{https://kanishk.pages.dev/treasures}{Portfolio: kanishk.pages.dev}
+\end{center}
+
+\vspace{-6pt}
+\section{Profile}
+Software developer with hands-on experience in the Apple software ecosystem (Swift, Apple Music API tooling, TUI rendering), low-level systems programming in C, and full-stack web platforms. Proven ability to diagnose multithreaded concurrency race conditions, optimize rendering geometry, and contribute peer-reviewed code to enterprise monorepos (GitLab). Strong grounding in memory management, clean user interfaces, and automated CI/CD. Available for 2027 software engineering internship.
+
+\section{Technical Skills}
+\begin{itemize}
+    \item \textbf{Languages:} Swift, C, Python, TypeScript, JavaScript, SQL, HTML5/CSS3
+    \item \textbf{Platforms \& Systems:} macOS/POSIX environments, Linux, Git, Concurrency \& Thread Safety, Memory Models
+    \item \textbf{Frameworks \& APIs:} Next.js, React 19, FastAPI, Django, Flask, RESTful API Design, Tailwind CSS
+    \item \textbf{Databases \& DevOps:} PostgreSQL, MySQL, Supabase, Docker, GitLab CI/CD, GitHub Actions
+\end{itemize}
+
+\section{Open-Source Contributions}
+\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
+\begin{itemize}
+    \item Diagnosed and resolved a concurrency race condition in non-thread-safe logging operations during terminal window resize (\texttt{SIGWINCH}) by patching the \texttt{swift-log} dependency (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}).
+    \item Optimized layout rendering by rectifying page plane height and width calculation algorithms to prevent terminal UI clipping (\href{https://github.com/jayadamsmorgan/Yatoro/pull/51}{PR \#51}).
+    \item Fixed off-by-one song index arithmetic during track navigation (\href{https://github.com/jayadamsmorgan/Yatoro/pull/56}{PR \#56}) and engineered an interactive CLI help command with user documentation (\href{https://github.com/jayadamsmorgan/Yatoro/pull/53}{PR \#53}).
+\end{itemize}
+
+\textbf{GitLab Core} \textit{(Front-End Contributor -- Vue.js)} \hfill \textit{2025}
+\begin{itemize}
+    \item Authored and merged peer-reviewed contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens to standardize UI styling across enterprise workflows.
+    \item Navigated rigorous enterprise code reviews, strict ESLint/Stylelint constraints, and distributed CI/CD test suites for a platform serving millions.
+\end{itemize}
+
+\section{Experience}
+\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
+\textit{Software Developer Intern} \hfill \textit{Remote}
+\begin{itemize}
+    \item Developed core clinical history modules using \textbf{Next.js}, \textbf{Django}, and \textbf{PostgreSQL}, handling multi-step medical intake workflows and role-based permissions.
+    \item Designed high-throughput RESTful endpoints and optimized relational queries to prevent performance bottlenecks.
+\end{itemize}
+
+\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
+\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
+\begin{itemize}
+    \item Built full-stack web applications using \textbf{React} on the frontend and \textbf{Flask} on the backend, managing MySQL relational schemas.
+    \item Managed Linux VPS servers: configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL, and maintained automated CI/CD deployment pipelines.
+\end{itemize}
+
+\section{Selected Projects}
+\textbf{Systems \& C Foundations} \ $\cdot$ \ \textit{Pure C, Harvard CS50x}
+\begin{itemize}
+    \item Independently implemented core computer science algorithms from scratch in C: manual memory management (\texttt{malloc}/\texttt{free}), pointer arithmetic, hash tables with collision chaining, tries, and binary search trees.
+\end{itemize}
+
+\textbf{SmartSpend} \ $\cdot$ \ \textit{React 19, TypeScript, FastAPI, Supabase (PostgreSQL)} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
+\begin{itemize}
+    \item Built an intelligent expense tracker with automated receipt ingestion via multimodal Gemini 2.5 Flash, multi-currency conversion, and spending analytics.
+\end{itemize}
+
+\section{Education}
+\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
+Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
+\textit{Relevant Coursework:} Operating Systems, Data Structures \& Algorithms, Computer Networks, Software Engineering. Independent completion of Harvard CS50x.
+
+\end{document}

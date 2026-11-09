@@ -1,0 +1,88 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
+    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} \\ \vspace{2pt}
+    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
+    \href{https://gitlab.com/kanishk0}{GitLab: gitlab.com/kanishk0} \ $\cdot$ \ 
+    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22} \ $\cdot$ \ 
+    \href{https://kanishk.pages.dev/treasures}{Portfolio: kanishk.pages.dev}
+\end{center}
+
+\vspace{-6pt}
+\section{Profile}
+Open-source software developer and Linux practitioner with peer-reviewed code merged into the core GitLab codebase. Experienced in Linux system administration, systemd service daemons, automated CI/CD pipelines, and systems programming in C and Python. Proven ability to debug multithreaded concurrency race conditions, write modular web services, and collaborate in distributed open-source workflows. Available for 2027 software engineering internship.
+
+\section{Technical Skills}
+\begin{itemize}
+    \item \textbf{Systems \& OS:} Linux (Ubuntu/Debian, POSIX), systemd, Bash scripting, C, Git, Docker, Nginx, Certbot SSL
+    \item \textbf{Languages:} Python, C, TypeScript, JavaScript, Swift, SQL, HTML5/CSS3
+    \item \textbf{Backend \& Cloud:} Django, Flask, FastAPI, RESTful APIs, PostgreSQL, MySQL, AWS, Linux VPS Management
+    \item \textbf{DevOps \& Open-Source:} GitLab CI/CD, GitHub Actions, Upstream Code Review, Automated Testing, Agile Workflows
+\end{itemize}
+
+\section{Open-Source Contributions}
+\textbf{GitLab Core} \textit{(Monorepo Contributor -- Vue.js)} \hfill \textit{2025}
+\begin{itemize}
+    \item Authored and successfully merged peer-reviewed contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens to standardize UI styling across enterprise workflows.
+    \item Navigated rigorous enterprise review processes, strict ESLint/Stylelint constraints, and distributed CI/CD test suites for an open-source platform serving millions of developers worldwide.
+\end{itemize}
+
+\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
+\begin{itemize}
+    \item Diagnosed and resolved a concurrency race condition during terminal resize (\texttt{SIGWINCH}) by patching the \texttt{swift-log} dependency (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}).
+    \item Rectified layout plane calculation algorithms (\href{https://github.com/jayadamsmorgan/Yatoro/pull/51}{PR \#51}) and fixed off-by-one song index arithmetic during track navigation (\href{https://github.com/jayadamsmorgan/Yatoro/pull/56}{PR \#56}).
+    \item Engineered an interactive CLI help command and onboarding documentation to improve developer experience (\href{https://github.com/jayadamsmorgan/Yatoro/pull/53}{PR \#53}).
+\end{itemize}
+
+\section{Experience}
+\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
+\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
+\begin{itemize}
+    \item Administered Linux VPS servers and cloud environments (AWS): configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL certificates, and managed \textbf{systemd} application service daemons.
+    \item Built full-stack web applications utilizing \textbf{React} on the frontend and \textbf{Flask} on the backend, structuring relational database schemas in MySQL with parameterized queries.
+    \item Maintained automated CI/CD build and deployment pipelines for staging and production web environments.
+\end{itemize}
+
+\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
+\textit{Software Developer Intern} \hfill \textit{Remote}
+\begin{itemize}
+    \item Developed core clinical history and diagnostics modules utilizing \textbf{Next.js}, \textbf{Django}, and \textbf{PostgreSQL}, replacing manual clinic paper workflows.
+    \item Implemented granular Role-Based Access Control (RBAC) and high-throughput RESTful endpoints with optimized multi-table relational queries.
+\end{itemize}
+
+\section{Selected Projects}
+\textbf{Systems \& C Foundations} \ $\cdot$ \ \textit{Pure C, Harvard CS50x}
+\begin{itemize}
+    \item Independently implemented core computer science algorithms and data structures from scratch in C: manual memory management (\texttt{malloc}/\texttt{free}), pointer arithmetic, hash tables with collision chaining, tries, and binary search trees.
+\end{itemize}
+
+\textbf{SmartSpend} \ $\cdot$ \ \textit{FastAPI, Python, Supabase (PostgreSQL), React 19} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
+\begin{itemize}
+    \item Built an intelligent expense tracker with automated receipt ingestion via a multimodal Gemini 2.5 Flash pipeline with fallback redundancy, real-time multi-currency exchange calculations, and category analytics.
+\end{itemize}
+
+\section{Education}
+\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
+Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
+\textit{Relevant Coursework:} Operating Systems, Computer Networks, Data Structures \& Algorithms, Database Management Systems, Software Engineering. Independent completion of Harvard CS50x.
+
+\end{document}
