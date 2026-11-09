@@ -73,6 +73,28 @@ python3 -m resume_forge.cli variant diff backend fullstack
 python3 -m resume_forge.cli variant compile backend -o output/backend.pdf
 ```
 
+### 7. Hunt Verified Live Jobs via Direct ATS APIs
+Query official public JSON APIs (Amazon, SmartRecruiters/CERN, Greenhouse, Lever) without web scrapers, extracting 100% active requisitions and auto-compiling paired single-page PDFs:
+```bash
+# Query Amazon, CERN, Greenhouse, Lever with separate flags:
+python3 -m resume_forge.cli hunt \
+  --company amazon \
+  --role "Software Development Engineer" \
+  --location "India" \
+  --limit 5 \
+  --compile
+
+python3 -m resume_forge.cli hunt \
+  --company cern \
+  --role "software" \
+  --location "all" \
+  --grad-year 2027 \
+  --compile
+
+# Output structured JSON:
+python3 -m resume_forge.cli hunt --company greenhouse --json
+```
+
 ---
 
 ## Python API Integration

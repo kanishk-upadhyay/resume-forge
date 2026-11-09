@@ -13,6 +13,8 @@ from .core.ats import ATSAnalyzer
 from .core.schema import ResumeData
 from .core.variants import VariantManager
 from .core.tailor import BulletTailor
+from .core.hunter import JobHunter
+
 
 
 def load_resume(input_path: str) -> ResumeData:
@@ -257,6 +259,42 @@ def cmd_tailor(args):
         print("No changes applied.")
 
 
+def cmd_hunt(args):
+    """Directly queries official public ATS APIs for verified live openings and pairs with resumes."""
+    print(f"Hunting verified live requisitions (Company: {args.company}, Role: '{args.role}', Location: '{args.location}')...")
+    hunter = JobHunter(
+        company=args.company,
+        role=args.role,
+        location=args.location,
+        grad_year=args.grad_year,
+        limit=args.limit,
+        compile_resumes=args.compile,
+        base_resume_path=args.base_resume,
+        output_dir=args.output_dir
+    )
+    postings = hunter.hunt()
+
+    if args.json:
+        print(json.dumps([p.to_dict() for p in postings], indent=2))
+        return
+
+    if not postings:
+        print("No matching active openings found matching criteria.")
+        return
+
+    print(f"\n✓ Found {len(postings)} verified live openings from official ATS APIs:\n")
+    for i, p in enumerate(postings, 1):
+        print(f"[{i}] {p.company} — {p.title}")
+        print(f"    Location:   {p.location}")
+        print(f"    Direct URL: {p.url}")
+        print(f"    Apply URL:  {p.apply_url}")
+        if p.match_rate_percent:
+            print(f"    JD Match:   {p.match_rate_percent}% keyword alignment")
+        if p.paired_resume_pdf:
+            print(f"    Paired PDF: {p.paired_resume_pdf}")
+        print("")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="resume-forge",
@@ -331,6 +369,19 @@ def main():
     p_tailor.add_argument("--apply-all", action="store_true", help="Automatically accept all suggested rewrites")
     p_tailor.add_argument("-o", "--output", help="Output path for tailored resume (.tex or .json)")
     p_tailor.set_defaults(func=cmd_tailor)
+
+    # hunt
+    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Amazon, SmartRecruiters, Greenhouse, Lever) for live jobs")
+    p_hunt.add_argument("-c", "--company", default="all", help="Target company or ATS (all, amazon, cern, greenhouse, lever, canonical, figma, stripe, databricks, palantir)")
+    p_hunt.add_argument("-r", "--role", default="software", help="Target role/title keywords (e.g. 'software intern', 'sde', 'engineer')")
+    p_hunt.add_argument("-l", "--location", default="India,Remote", help="Target location (e.g. 'India,Remote', 'Switzerland', 'all')")
+    p_hunt.add_argument("-g", "--grad-year", type=int, default=2027, help="Target graduation cohort year (default: 2027)")
+    p_hunt.add_argument("-n", "--limit", type=int, default=5, help="Maximum postings per source (default: 5)")
+    p_hunt.add_argument("--compile", action="store_true", help="Auto-tailor and compile paired single-page PDFs via ResumeCompiler")
+    p_hunt.add_argument("-b", "--base-resume", help="Base resume path to tailor from (.tex or .json)")
+    p_hunt.add_argument("-o", "--output-dir", default="output/hunt", help="Output directory for compiled PDFs and reports (default: output/hunt)")
+    p_hunt.add_argument("--json", action="store_true", help="Output results in JSON format")
+    p_hunt.set_defaults(func=cmd_hunt)
 
     args = parser.parse_args()
     args.func(args)

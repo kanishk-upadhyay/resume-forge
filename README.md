@@ -88,6 +88,32 @@ Estimated Content   : ~49 lines
 ```
 Opens `http://localhost:8080` in your browser. Edit visually or edit LaTeX raw code with real-time paper rendering and 1-click PDF download!
 
+### 6. Hunt Verified Live Jobs & Auto-Compile Resumes (Direct ATS APIs)
+Query official public JSON endpoints of Amazon Jobs, SmartRecruiters (CERN), Greenhouse (Canonical, Figma, Stripe, Databricks), and Lever (Palantir) directly with zero web scrapers or dead links:
+```bash
+# Hunt software internships in India/Remote and auto-compile single-page PDFs
+./bin/resume-forge hunt --role "software" --location "India,Remote" --compile
+
+# Target specific company/ATS with modular flags:
+./bin/resume-forge hunt \
+  --company amazon \
+  --role "Software Development Engineer" \
+  --location "India" \
+  --limit 5 \
+  --compile
+
+./bin/resume-forge hunt \
+  --company cern \
+  --role "software" \
+  --location "all" \
+  --grad-year 2027 \
+  --compile
+
+# Export verified listings to structured JSON for automation:
+./bin/resume-forge hunt --company greenhouse --json
+```
+
+
 ---
 
 ## 🖥️ Web Studio Architecture

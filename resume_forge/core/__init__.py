@@ -11,6 +11,7 @@ from .compiler import ResumeCompiler
 from .ats import ATSAnalyzer
 from .variants import VariantManager
 from .tailor import BulletTailor
+from .hunter import JobHunter, JobPosting
 
 __all__ = [
     "ResumeData",
@@ -32,5 +33,7 @@ __all__ = [
     "ResumeCompiler",
     "ATSAnalyzer",
     "VariantManager",
-    "BulletTailor"
+    "BulletTailor",
+    "JobHunter",
+    "JobPosting"
 ]
