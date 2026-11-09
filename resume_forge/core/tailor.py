@@ -137,7 +137,8 @@ class BulletTailor:
                 break
 
         # Check 2: First word should be a strong past-tense action verb
-        clean_first = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', improved)
+        clean_first = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt|underline)\s*\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', improved)
+        clean_first = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', clean_first)
         clean_first = clean_first.replace('**', '').replace('__', '').replace('*', '')
         words = re.findall(r'\b[a-zA-Z]+(?:-[a-zA-Z]+)?\b', clean_first)
         if words and words[0].lower() not in STRONG_ACTION_VERBS:
@@ -146,7 +147,7 @@ class BulletTailor:
 
         # Check 3: Missing quantifiable metrics
         has_metric = bool(re.search(
-            r'(?:\b\d+(?:\.\d+)?%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:\.\d+)?\s*(?:x|X)\b|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|rps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks|queries)\b)',
+            r'(?:\b\d+(?:\.\d+)?%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:\.\d+)?\s*(?:x|X)\b|\b\d+(?:\.\d+)?(?:,\d+)*\s*[kKmMbB]?(?:\+)?\s*(?:users|requests|qps|rps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks|queries|downloads|clients|subscribers)\b)',
             improved,
             re.IGNORECASE
         ))

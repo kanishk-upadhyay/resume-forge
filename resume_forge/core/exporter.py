@@ -140,8 +140,19 @@ class ResumeExporter:
             clean_url = b.url.replace("https://", "").replace("http://", "")
             contact_items.append(r'\href{' + b.url + '}{' + esc(clean_url) + '}')
         for p in b.profiles:
-            clean_u = p.url.replace("https://", "").replace("http://", "")
-            contact_items.append(r'\href{' + p.url + '}{' + esc(clean_u) + '}')
+            p_url = p.url
+            if not p_url and p.username:
+                if "github" in p.network.lower():
+                    p_url = f"https://github.com/{p.username}"
+                elif "linkedin" in p.network.lower():
+                    p_url = f"https://linkedin.com/in/{p.username}"
+                elif "gitlab" in p.network.lower():
+                    p_url = f"https://gitlab.com/{p.username}"
+            if p_url:
+                clean_u = p_url.replace("https://", "").replace("http://", "")
+                contact_items.append(r'\href{' + p_url + '}{' + esc(clean_u) + '}')
+            elif p.username or p.network:
+                contact_items.append(esc(p.username or p.network))
 
         contact_line = " $|$ ".join(contact_items)
 

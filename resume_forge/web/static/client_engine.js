@@ -277,6 +277,37 @@ window.ClientResumeEngine = {
       tex += "}}\\end{itemize}\n";
     }
 
+    if (resume.certificates?.length) {
+      tex += "\\section{Certifications}\\resumeSubHeadingListStart\n";
+      resume.certificates.forEach(c => {
+        tex += `  \\resumeSubheading{${esc(c.name)}}{${esc(c.date || '')}}{${esc(c.issuer || '')}}{}\n`;
+      });
+      tex += "\\resumeSubHeadingListEnd\n";
+    }
+
+    if (resume.awards?.length) {
+      tex += "\\section{Honors & Awards}\\begin{itemize}[leftmargin=0.15in, label={}]\\small{\\item{\n";
+      resume.awards.forEach(a => {
+        tex += `  \\textbf{${esc(a.title)}}{ -- ${esc(a.awarder || '')} (${esc(a.date || '')})} \\\\\n`;
+      });
+      tex += "}}\\end{itemize}\n";
+    }
+
+    if (resume.publications?.length) {
+      tex += "\\section{Publications}\\begin{itemize}[leftmargin=0.15in, label={}]\\small{\\item{\n";
+      resume.publications.forEach(pub => {
+        tex += `  ${esc(pub.name)} \\\\\n`;
+      });
+      tex += "}}\\end{itemize}\n";
+    }
+
+    if (resume.languages?.length) {
+      tex += "\\section{Languages}\\begin{itemize}[leftmargin=0.15in, label={}]\\small{\\item{\n";
+      const langStrs = resume.languages.map(l => l.fluency ? `${esc(l.language)} (${esc(l.fluency)})` : esc(l.language));
+      tex += `  ${langStrs.join(', ')} \\\\\n`;
+      tex += "}}\\end{itemize}\n";
+    }
+
     tex += "\\end{document}\n";
     return tex;
   },

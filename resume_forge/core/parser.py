@@ -67,32 +67,59 @@ def clean_latex(text: str) -> str:
     text = re.sub(r'\\ae\b', 'æ', text)
     text = re.sub(r'\\AE\b', 'Æ', text)
 
-    # 2. Normalize math-mode vertical dividers and text symbols
+    # 2. Convert LaTeX non-breaking tie '~' to space before restoring math/text tildes
+    text = text.replace('~', ' ')
+
+    # 3. Normalize math-mode vertical dividers, quotes, and symbols
     text = re.sub(r'\$\s*(?:\\vert|\|)\s*\$', ' | ', text)
+    text = re.sub(r'\$\s*\\sim\s*\$|\\sim\b', '~', text)
+    text = re.sub(r'\$\s*\\pm\s*\$|\\pm\b', '±', text)
+    text = re.sub(r'\$\s*\\times\s*\$|\\times\b', '×', text)
+    text = re.sub(r'\$\s*\\(?:le|leq)\s*\$|\\(?:le|leq)\b', '≤', text)
+    text = re.sub(r'\$\s*\\(?:ge|geq)\s*\$|\\(?:ge|geq)\b', '≥', text)
+    text = re.sub(r'\$\s*\\approx\s*\$|\\approx\b', '≈', text)
+    text = re.sub(r'\\textasciitilde\{\}?|\\textasciitilde\b', '~', text)
+    text = re.sub(r'\\textasciicircum\{\}?|\\textasciicircum\b', '^', text)
+    text = re.sub(r'\\textbar\{\}?|\\textbar\b', '|', text)
+    text = re.sub(r'\\slash\{\}?|\\slash\b', '/', text)
+    text = re.sub(r'\\textbullet\{\}?|\\bullet\b|\\cdot\b', '•', text)
     
-    # 3. Extract labels from \href{url}{label} with nested brace support
-    href_pattern = r'\\href\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}'
+    # Normalize LaTeX quotation marks: ``word'' -> "word", `word' -> 'word'
+    text = re.sub(r"``((?:[^']|'(?!'))*)''", r'"\1"', text)
+    text = re.sub(r"`([^']*)'", r"'\1'", text)
+    
+    # 4. Extract labels from \href{url}{label} with nested brace support
+    href_pattern = r'\\href\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
     while re.search(href_pattern, text):
         text = re.sub(href_pattern, r'\2', text)
-    text = re.sub(r'\\url\{([^}]+)\}', r'\1', text)
+    text = re.sub(r'\\url\s*\{([^}]+)\}', r'\1', text)
     
-    # 4. Iteratively peel text styling macros (textbf, textit, emph, underline, etc.)
+    # 5. Iteratively peel text styling macros (textbf, textit, emph, underline, etc.)
     macro_pattern = r'\\(?:textbf|textit|emph|textsc|texttt|underline|small|footnotesize|large|Large|Huge|scshape)\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
     for _ in range(4):
         if not re.search(macro_pattern, text):
             break
         text = re.sub(macro_pattern, r'\1', text)
     
-    # 5. Inline font switches like {\scshape text} or {\bf text}
+    # 6. Inline font switches like {\scshape text} or {\bf text}
     text = re.sub(r'\{(?:\\[a-zA-Z]+\s+)?([^{}]+)\}', r'\1', text)
     
-    # 6. Math mode unwrapping: retain inner content (e.g. $10B -> 10B)
+    # 7. Math mode unwrapping: retain inner content (e.g. $10B -> 10B)
     text = re.sub(r'\$([^$]*)\$', r'\1', text)
+    
+    # 8. Unescape LaTeX punctuation spacing and linebreaks
+    # \\ with optional spacing like \\[5pt] or \\
+    text = re.sub(r'\\\\(?:\s*\[[^\]]*\])?', ' ', text)
+    # Spacing commands: \, \: \; \! \ \- \/
+    text = re.sub(r'\\[,:; ]', ' ', text)
+    text = re.sub(r'\\!', '', text)
+    text = re.sub(r'\\-', '', text)
+    text = re.sub(r'\\/', '', text)
     
     # Remove remaining backslash commands (e.g. \vspace{...}, \hspace{...}, \hfill)
     text = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', text)
     
-    # 7. Unescape special characters
+    # 9. Unescape special characters
     replacements = [
         (r'\\&', '&'),
         (r'\\%', '%'),
@@ -103,7 +130,6 @@ def clean_latex(text: str) -> str:
         (r'\\\}', '}'),
         (r'\\textless\{\}?', '<'),
         (r'\\textgreater\{\}?', '>'),
-        (r'~', ' '),
         (r'---', '—'),
         (r'--', '–'),
         (r'\s+', ' '),
@@ -149,8 +175,8 @@ def extract_braced_args(text: str, start_pos: int, max_args: int = 1) -> Tuple[L
 
 
 def extract_hrefs(text: str) -> List[Tuple[str, str]]:
-    """Extracts (url, label) pairs from \\href{url}{label}."""
-    return re.findall(r'\\href\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}', text)
+    """Extracts (url, label) pairs from \\href{url}{label} with optional whitespace."""
+    return re.findall(r'\\href\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}', text)
 
 
 class LatexResumeParser:

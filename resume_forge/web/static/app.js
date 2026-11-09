@@ -17,7 +17,11 @@ let currentResume = {
   work: [],
   open_source: [],
   projects: [],
-  skills: []
+  skills: [],
+  certificates: [],
+  awards: [],
+  publications: [],
+  languages: []
 };
 
 let currentZoom = 1.0;
@@ -216,9 +220,6 @@ function setupActionButtons() {
       }
     }
   });
-    const audit = await resp.json();
-    renderAudit(audit);
-  });
 
   // Form inputs listener
   ["inp-name", "inp-email", "inp-phone", "inp-location", "inp-website"].forEach(id => {
@@ -277,6 +278,62 @@ function setupActionButtons() {
     populateForm();
     renderPreview();
   });
+
+  // Dynamic Add Buttons for Certifications, Awards, Publications, Languages
+  document.getElementById("btn-add-cert")?.addEventListener("click", () => {
+    currentResume.certificates = currentResume.certificates || [];
+    currentResume.certificates.push({ name: "AWS Certified Solutions Architect", issuer: "Amazon Web Services", date: "2024" });
+    populateForm();
+    renderPreview();
+  });
+
+  document.getElementById("btn-add-award")?.addEventListener("click", () => {
+    currentResume.awards = currentResume.awards || [];
+    currentResume.awards.push({ title: "First Place - Hackathon", awarder: "Tech Community", date: "2024", summary: "Winner among 100+ teams" });
+    populateForm();
+    renderPreview();
+  });
+
+  document.getElementById("btn-add-pub")?.addEventListener("click", () => {
+    currentResume.publications = currentResume.publications || [];
+    currentResume.publications.push({ name: "High-Performance Distributed Graph Computing", release_date: "2024" });
+    populateForm();
+    renderPreview();
+  });
+
+  document.getElementById("btn-add-lang")?.addEventListener("click", () => {
+    currentResume.languages = currentResume.languages || [];
+    currentResume.languages.push({ language: "English", fluency: "Fluent" });
+    populateForm();
+    renderPreview();
+  });
+
+  // Upload Resume button and input
+  const uploadBtn = document.getElementById("btn-upload-file");
+  const uploadInput = document.getElementById("inp-upload-file");
+  if (uploadBtn && uploadInput) {
+    uploadBtn.addEventListener("click", () => uploadInput.click());
+    uploadInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => handleUploadedContent(evt.target.result, file.name);
+      reader.readAsText(file);
+      uploadInput.value = "";
+    });
+  }
+
+  // Window drag and drop
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onload = (evt) => handleUploadedContent(evt.target.result, file.name);
+      reader.readAsText(file);
+    }
+  });
 }
 
 function setupZoom() {
@@ -312,6 +369,49 @@ async function loadInitialSample() {
   }
 }
 
+async function handleUploadedContent(content, filename) {
+  if (filename.toLowerCase().endsWith(".json") || content.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(content);
+      currentResume = parsed;
+      populateForm();
+      renderPreview();
+      syncFormToLatex();
+      alert(`Loaded JSON resume '${filename}' successfully!`);
+      return;
+    } catch (err) {
+      console.warn("JSON parse failed, trying backend", err);
+    }
+  }
+
+  // LaTeX parsing via backend
+  try {
+    const resp = await fetch("/api/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latex: content })
+    });
+    const data = await resp.json();
+    if (data.resume) {
+      currentResume = data.resume;
+      document.getElementById("latex-editor").value = content;
+      populateForm();
+      renderPreview();
+      alert(`Parsed '${filename}' (${data.summary.jobs} jobs, ${data.summary.projects} projects, ${data.summary.skills} skills)!`);
+      return;
+    }
+  } catch (err) {
+    if (window.ClientResumeEngine) {
+      const parsed = window.ClientResumeEngine.parseLatex(content);
+      currentResume = parsed;
+      document.getElementById("latex-editor").value = content;
+      populateForm();
+      renderPreview();
+      alert(`Parsed offline '${filename}'!`);
+    }
+  }
+}
+
 function populateForm() {
   const b = currentResume.basics || {};
   document.getElementById("inp-name").value = b.name || "";
@@ -325,6 +425,10 @@ function populateForm() {
   renderOSList();
   renderProjectList();
   renderSkillList();
+  renderCertList();
+  renderAwardList();
+  renderPubList();
+  renderLangList();
 }
 
 function renderWorkList() {
@@ -461,6 +565,95 @@ function renderSkillList() {
   });
 }
 
+function renderCertList() {
+  const container = document.getElementById("cert-items-container");
+  if (!container) return;
+  container.innerHTML = "";
+  (currentResume.certificates || []).forEach((c, idx) => {
+    const box = document.createElement("div");
+    box.className = "item-box";
+    box.innerHTML = `
+      <div class="item-box-header">
+        <span class="item-box-title">${c.name || "Certificate"}</span>
+        <button class="btn-del" onclick="deleteCert(${idx})">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Certification Name</label><input type="text" value="${c.name || ""}" oninput="updateCert(${idx}, 'name', this.value)"></div>
+        <div class="form-group"><label>Issuer / Authority</label><input type="text" value="${c.issuer || ""}" oninput="updateCert(${idx}, 'issuer', this.value)"></div>
+        <div class="form-group"><label>Date</label><input type="text" value="${c.date || ""}" oninput="updateCert(${idx}, 'date', this.value)"></div>
+        <div class="form-group"><label>Credential URL</label><input type="url" value="${c.url || ""}" oninput="updateCert(${idx}, 'url', this.value)"></div>
+      </div>
+    `;
+    container.appendChild(box);
+  });
+}
+
+function renderAwardList() {
+  const container = document.getElementById("award-items-container");
+  if (!container) return;
+  container.innerHTML = "";
+  (currentResume.awards || []).forEach((a, idx) => {
+    const box = document.createElement("div");
+    box.className = "item-box";
+    box.innerHTML = `
+      <div class="item-box-header">
+        <span class="item-box-title">${a.title || "Honor / Award"}</span>
+        <button class="btn-del" onclick="deleteAward(${idx})">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Award Title</label><input type="text" value="${a.title || ""}" oninput="updateAward(${idx}, 'title', this.value)"></div>
+        <div class="form-group"><label>Awarder / Organization</label><input type="text" value="${a.awarder || ""}" oninput="updateAward(${idx}, 'awarder', this.value)"></div>
+        <div class="form-group"><label>Date</label><input type="text" value="${a.date || ""}" oninput="updateAward(${idx}, 'date', this.value)"></div>
+        <div class="form-group"><label>Summary / Details</label><input type="text" value="${a.summary || ""}" oninput="updateAward(${idx}, 'summary', this.value)"></div>
+      </div>
+    `;
+    container.appendChild(box);
+  });
+}
+
+function renderPubList() {
+  const container = document.getElementById("pub-items-container");
+  if (!container) return;
+  container.innerHTML = "";
+  (currentResume.publications || []).forEach((pub, idx) => {
+    const box = document.createElement("div");
+    box.className = "item-box";
+    box.innerHTML = `
+      <div class="item-box-header">
+        <span class="item-box-title">${pub.name || "Publication"}</span>
+        <button class="btn-del" onclick="deletePub(${idx})">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group full-width"><label>Publication Title / Citation</label><input type="text" value="${pub.name || ""}" oninput="updatePub(${idx}, 'name', this.value)"></div>
+        <div class="form-group"><label>Publisher / Conference</label><input type="text" value="${pub.publisher || ""}" oninput="updatePub(${idx}, 'publisher', this.value)"></div>
+        <div class="form-group"><label>Release Date</label><input type="text" value="${pub.release_date || ""}" oninput="updatePub(${idx}, 'release_date', this.value)"></div>
+      </div>
+    `;
+    container.appendChild(box);
+  });
+}
+
+function renderLangList() {
+  const container = document.getElementById("lang-items-container");
+  if (!container) return;
+  container.innerHTML = "";
+  (currentResume.languages || []).forEach((l, idx) => {
+    const box = document.createElement("div");
+    box.className = "item-box";
+    box.innerHTML = `
+      <div class="item-box-header">
+        <span class="item-box-title">${l.language || "Language"}</span>
+        <button class="btn-del" onclick="deleteLang(${idx})">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Language</label><input type="text" value="${l.language || ""}" oninput="updateLang(${idx}, 'language', this.value)"></div>
+        <div class="form-group"><label>Fluency / Proficiency</label><input type="text" value="${l.fluency || ""}" oninput="updateLang(${idx}, 'fluency', this.value)"></div>
+      </div>
+    `;
+    container.appendChild(box);
+  });
+}
+
 // Global update handlers for form inputs
 window.updateWork = (idx, field, val) => { currentResume.work[idx][field] = val; renderPreview(); };
 window.updateWorkDates = (idx, val) => { const parts = val.split(/[–—\-]/); currentResume.work[idx].start_date = parts[0]?.trim(); currentResume.work[idx].end_date = parts[1]?.trim(); renderPreview(); };
@@ -489,6 +682,18 @@ window.deleteProject = (idx) => { currentResume.projects.splice(idx, 1); renderP
 window.updateSkill = (idx, field, val) => { currentResume.skills[idx][field] = val; renderPreview(); };
 window.updateSkillKeywords = (idx, val) => { currentResume.skills[idx].keywords = val.split(',').map(s => s.trim()).filter(Boolean); renderPreview(); };
 window.deleteSkill = (idx) => { currentResume.skills.splice(idx, 1); renderSkillList(); renderPreview(); };
+
+window.updateCert = (idx, field, val) => { currentResume.certificates[idx][field] = val; renderPreview(); };
+window.deleteCert = (idx) => { currentResume.certificates.splice(idx, 1); renderCertList(); renderPreview(); };
+
+window.updateAward = (idx, field, val) => { currentResume.awards[idx][field] = val; renderPreview(); };
+window.deleteAward = (idx) => { currentResume.awards.splice(idx, 1); renderAwardList(); renderPreview(); };
+
+window.updatePub = (idx, field, val) => { currentResume.publications[idx][field] = val; renderPreview(); };
+window.deletePub = (idx) => { currentResume.publications.splice(idx, 1); renderPubList(); renderPreview(); };
+
+window.updateLang = (idx, field, val) => { currentResume.languages[idx][field] = val; renderPreview(); };
+window.deleteLang = (idx) => { currentResume.languages.splice(idx, 1); renderLangList(); renderPreview(); };
 
 function renderPreview() {
   const paper = document.getElementById("resume-paper");
@@ -610,6 +815,53 @@ function renderPreview() {
         </div>
       `;
     });
+  }
+
+  // Certifications
+  if (currentResume.certificates?.length) {
+    html += `<div class="section-header">Certifications</div>`;
+    currentResume.certificates.forEach(c => {
+      const issuerStr = c.issuer ? ` - ${c.issuer}` : "";
+      const dateStr = c.date ? ` (${c.date})` : "";
+      html += `
+        <div class="skill-row">
+          <span class="skill-category">${c.name}</span>${issuerStr}${dateStr}
+        </div>
+      `;
+    });
+  }
+
+  // Honors & Awards
+  if (currentResume.awards?.length) {
+    html += `<div class="section-header">Honors & Awards</div>`;
+    currentResume.awards.forEach(a => {
+      const awarderStr = a.awarder ? ` - ${a.awarder}` : "";
+      const dateStr = a.date ? ` (${a.date})` : "";
+      html += `
+        <div class="skill-row">
+          <span class="skill-category">${a.title}</span>${awarderStr}${dateStr}
+        </div>
+      `;
+    });
+  }
+
+  // Publications
+  if (currentResume.publications?.length) {
+    html += `<div class="section-header">Publications</div>`;
+    currentResume.publications.forEach(pub => {
+      html += `
+        <div class="skill-row">${pub.name}</div>
+      `;
+    });
+  }
+
+  // Languages
+  if (currentResume.languages?.length) {
+    html += `<div class="section-header">Languages</div>`;
+    const langStrs = currentResume.languages.map(l => l.fluency ? `${l.language} (${l.fluency})` : l.language);
+    html += `
+      <div class="skill-row">${langStrs.join(", ")}</div>
+    `;
   }
 
   paper.innerHTML = html;

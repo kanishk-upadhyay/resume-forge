@@ -474,6 +474,141 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(len(reparsed.awards), 1)
         self.assertEqual(len(reparsed.publications), 1)
 
+    def test_schema_robust_deserialization_and_nulls(self):
+        """Verify schema deserialization survives null fields, camelCase JSON Resume, and type coercions."""
+        d_nulls = {
+            "basics": {"name": "Null Candidate", "location": None, "profiles": None},
+            "work": None,
+            "education": None,
+            "projects": None,
+            "skills": None
+        }
+        res_nulls = ResumeData.from_dict(d_nulls)
+        self.assertEqual(res_nulls.basics.name, "Null Candidate")
+        self.assertEqual(res_nulls.work, [])
+        self.assertEqual(res_nulls.basics.profiles, [])
+
+        d_camel = {
+            "basics": {
+                "name": "CamelCase Candidate",
+                "location": {"city": "New York", "postalCode": "10001", "countryCode": "US"}
+            },
+            "work": [
+                {
+                    "name": "Enterprise Inc",
+                    "position": "Staff Engineer",
+                    "startDate": 2021,
+                    "endDate": "2024",
+                    "highlights": "Architected low-latency caching layer."
+                }
+            ],
+            "education": [
+                {
+                    "institution": "Columbia",
+                    "studyType": "B.S. Computer Science",
+                    "startDate": 2017,
+                    "endDate": 2021
+                }
+            ],
+            "volunteer": [
+                {
+                    "organization": "Open Source Foundation",
+                    "position": "Maintainer",
+                    "highlights": ["Reviewed 50+ PRs"]
+                }
+            ]
+        }
+        res_camel = ResumeData.from_dict(d_camel)
+        self.assertEqual(res_camel.basics.location.postal_code, "10001")
+        self.assertEqual(res_camel.basics.location.country_code, "US")
+        self.assertEqual(res_camel.work[0].start_date, "2021")
+        self.assertEqual(res_camel.work[0].end_date, "2024")
+        self.assertEqual(res_camel.work[0].highlights, ["Architected low-latency caching layer."])
+        self.assertEqual(res_camel.education[0].study_type, "B.S. Computer Science")
+        self.assertEqual(len(res_camel.open_source), 1)
+        self.assertEqual(res_camel.open_source[0].project, "Open Source Foundation")
+
+    def test_parser_advanced_latex_cleanups(self):
+        """Verify linebreaks, quotes, spacing commands, and math symbols are cleanly unescaped."""
+        # Linebreaks with spacing
+        lb_text = "Senior Engineer \\\\ Systems Architecture \\\\[5pt] Core Infrastructure"
+        cleaned_lb = clean_latex(lb_text)
+        self.assertNotIn(r"\\", cleaned_lb)
+        self.assertIn("Senior Engineer Systems Architecture Core Infrastructure", cleaned_lb)
+
+        # Quotes: ``Athena'' and `Zeus'
+        bt = chr(96)
+        quote_text = f"Designed {bt}{bt}Athena\x27\x27 and {bt}Zeus\x27 systems."
+        cleaned_quotes = clean_latex(quote_text)
+        self.assertIn('"Athena"', cleaned_quotes)
+        self.assertIn("'Zeus'", cleaned_quotes)
+
+        # Spacing commands: \, \: \; \! \- \/
+        spacing_text = r"Engineered C++\,/\,Go services with high\-throughput and zero\!latency."
+        cleaned_spacing = clean_latex(spacing_text)
+        self.assertNotIn(r"\,", cleaned_spacing)
+        self.assertNotIn(r"\-", cleaned_spacing)
+        self.assertNotIn(r"\!", cleaned_spacing)
+        self.assertIn("C++ / Go services", cleaned_spacing)
+
+        # Math symbols: \sim, \pm, \times, \le, \ge
+        math_text = r"Achieved $\sim$ 2\times speedup with $\pm$ 5% jitter and $\le$ 2ms latency."
+        cleaned_math = clean_latex(math_text)
+        self.assertIn("~", cleaned_math)
+        self.assertIn("2×", cleaned_math)
+        self.assertIn("±", cleaned_math)
+        self.assertIn("≤", cleaned_math)
+
+        # Hrefs with whitespace between command and arguments
+        href_raw = r"\href {https://github.com/torvalds} {Linus GitHub}"
+        from resume_forge.core.parser import extract_hrefs
+        hrefs = extract_hrefs(href_raw)
+        self.assertEqual(len(hrefs), 1)
+        self.assertEqual(hrefs[0][0], "https://github.com/torvalds")
+
+    def test_tailor_and_ats_metric_quantifiers_and_formatting(self):
+        """Verify \\textbf{Led} and multipliers like 50k users, 10M requests are credited without false positives."""
+        from resume_forge.core.tailor import BulletTailor
+        data = ResumeData(
+            work=[
+                WorkItem(
+                    name="CERN",
+                    position="Software Engineer",
+                    highlights=[
+                        r"\textbf{Led} the architecture of distributed pipeline serving 50k users.",
+                        r"Scaled real-time telemetry processing 10M requests daily with sub-10ms response."
+                    ]
+                )
+            ]
+        )
+        # Tailor check: should NOT flag 'Led' as non-impact verb or missing metric
+        tailor = BulletTailor(data)
+        res = tailor.tailor("Distributed Systems Engineer")
+        self.assertEqual(len(res["suggestions"]), 0)
+
+        # ATS check: 100% action verbs, 2 metrics
+        analyzer = ATSAnalyzer(data)
+        report = analyzer.analyze()
+        self.assertTrue(any("100% of bullet points start with strong action verbs" in s for s in report["strengths"]))
+        self.assertTrue(any("2 bullets contain quantifiable impact metrics" in s for s in report["strengths"]))
+
+    def test_exporter_profiles_fallback_urls(self):
+        """Verify profile with username but empty url constructs valid link rather than empty href."""
+        from resume_forge.core.schema import Profile
+        data = ResumeData(
+            basics=Basics(
+                name="Web Dev",
+                profiles=[
+                    Profile(network="GitHub", username="octocat", url=""),
+                    Profile(network="LinkedIn", username="octocat-dev", url="")
+                ]
+            )
+        )
+        tex = ResumeExporter(data).to_latex()
+        self.assertNotIn(r"\href{}{", tex)
+        self.assertIn(r"\href{https://github.com/octocat}{github.com/octocat}", tex)
+        self.assertIn(r"\href{https://linkedin.com/in/octocat-dev}{linkedin.com/in/octocat-dev}", tex)
+
 
 if __name__ == "__main__":
     unittest.main()

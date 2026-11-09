@@ -27,6 +27,8 @@
       </div>
 
       <div class="nav-actions">
+        <input type="file" id="inp-upload-file" accept=".tex,.json" style="display: none;">
+        <button id="btn-upload-file" class="btn btn-secondary">📂 Upload (.tex / .json)</button>
         <button id="btn-compile-pdf" class="btn btn-primary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="18"></line><line x1="15" y1="15" x2="12" y2="18"></line></svg>
           Compile Single-Page PDF
@@ -122,6 +124,42 @@
                 <button id="btn-add-skill" class="btn-sm">+ Add Category</button>
               </div>
               <div id="skill-items-container"></div>
+            </div>
+
+            <!-- Certifications section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Certifications & Licenses</h3>
+                <button id="btn-add-cert" class="btn-sm">+ Add Certificate</button>
+              </div>
+              <div id="cert-items-container"></div>
+            </div>
+
+            <!-- Awards section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Honors & Awards</h3>
+                <button id="btn-add-award" class="btn-sm">+ Add Award</button>
+              </div>
+              <div id="award-items-container"></div>
+            </div>
+
+            <!-- Publications section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Publications & Research</h3>
+                <button id="btn-add-pub" class="btn-sm">+ Add Publication</button>
+              </div>
+              <div id="pub-items-container"></div>
+            </div>
+
+            <!-- Languages section -->
+            <div class="section-card">
+              <div class="card-header-row">
+                <h3 class="card-title">Languages</h3>
+                <button id="btn-add-lang" class="btn-sm">+ Add Language</button>
+              </div>
+              <div id="lang-items-container"></div>
             </div>
           </div>
 

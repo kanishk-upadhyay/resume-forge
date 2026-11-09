@@ -73,13 +73,23 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json({"error": "Sample template not found"}, 404)
 
     def _handle_parse(self, req_data: Dict[str, Any]):
-        raw_tex = req_data.get("latex", "")
-        if not raw_tex:
-            self._send_json({"error": "No LaTeX content provided"}, 400)
+        raw_input = req_data.get("latex") or req_data.get("raw") or ""
+        if not raw_input:
+            self._send_json({"error": "No content provided"}, 400)
             return
 
-        parser = LatexResumeParser(raw_tex)
-        resume_data = parser.parse()
+        resume_data = None
+        trimmed = raw_input.strip()
+        if trimmed.startswith("{"):
+            try:
+                resume_data = ResumeData.from_json(trimmed)
+            except Exception:
+                resume_data = None
+
+        if resume_data is None:
+            parser = LatexResumeParser(raw_input)
+            resume_data = parser.parse()
+
         self._send_json({
             "resume": resume_data.to_dict(),
             "summary": {

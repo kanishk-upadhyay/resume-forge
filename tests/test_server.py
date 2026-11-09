@@ -136,6 +136,26 @@ class TestStudioServer(unittest.TestCase):
         self.assertTrue(resp_data["success"])
         self.assertIn("pdf_url", resp_data)
 
+    def test_post_parse_json_direct(self):
+        """Verify server /api/parse handles raw JSON resume payload seamlessly."""
+        json_resume = {
+            "basics": {"name": "Grace Hopper", "email": "hopper@navy.mil"},
+            "work": [{"name": "US Navy", "position": "Rear Admiral", "startDate": "1943", "endDate": "1986", "highlights": ["Pioneered compilers"]}]
+        }
+        payload = json.dumps({"raw": json.dumps(json_resume)}).encode("utf-8")
+        handler = DummyStudioHandler()
+        handler.path = "/api/parse"
+        handler.headers = {"Content-Length": str(len(payload))}
+        handler.rfile = BytesIO(payload)
+
+        handler.do_POST()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertEqual(resp_data["resume"]["basics"]["name"], "Grace Hopper")
+        self.assertEqual(len(resp_data["resume"]["work"]), 1)
+        self.assertEqual(resp_data["resume"]["work"][0]["start_date"], "1943")
+
     def test_404_not_found(self):
         handler = DummyStudioHandler()
         handler.path = "/api/nonexistent_endpoint"
