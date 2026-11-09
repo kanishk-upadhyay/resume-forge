@@ -152,6 +152,51 @@ class TestAdvancedParser(unittest.TestCase):
         self.assertEqual(d2.basics.name, "Real Name")
         self.assertEqual(d2.basics.email, "real@example.com")
 
+    def test_bracket_and_nested_brace_title_parsing(self):
+        """Verifies no stray opening or closing braces remain in titles, headings, or exports."""
+        from resume_forge.core.exporter import ResumeExporter
+        from resume_forge.core.schema import Basics
+
+        test_cases = [
+            r"\textbf{\Huge \scshape {Kanishk Upadhyay}}",
+            r"{\Huge \scshape {Kanishk Upadhyay}}",
+            r"\textbf{\Huge {Kanishk Upadhyay}}",
+            r"{\Huge {Kanishk Upadhyay}}",
+            r"\textbf{{\Huge \scshape {Kanishk Upadhyay}}}",
+            r"\name{{Kanishk}}{{Upadhyay}}",
+            r"\namesection{{Kanishk}}{{Upadhyay}}{}",
+            r"\author{{Kanishk Upadhyay}}",
+            r"\Huge \textbf{{Kanishk Upadhyay}}",
+            r"\begin{center} \textbf{\Huge \scshape {Kanishk Upadhyay}} \end{center}",
+        ]
+
+        for tc in test_cases:
+            parser = LatexResumeParser(tc)
+            data = parser.parse()
+            name = data.basics.name
+            self.assertEqual(name, "Kanishk Upadhyay", f"Failed for {tc}")
+            self.assertNotIn("{", name)
+            self.assertNotIn("}", name)
+
+            exporter = ResumeExporter(data)
+            html = exporter.to_html()
+            self.assertIn("<title>Kanishk Upadhyay - Resume</title>", html)
+            self.assertIn("<h1>Kanishk Upadhyay</h1>", html)
+            self.assertNotIn("<title>{", html)
+            self.assertNotIn("<h1>{", html)
+
+            md = exporter.to_markdown()
+            self.assertTrue(md.startswith("# Kanishk Upadhyay"))
+
+            tex = exporter.to_latex()
+            self.assertIn(r"\textbf{\Huge \scshape Kanishk Upadhyay}", tex)
+
+        # Direct schema sanitization test
+        b = Basics(name="{Kanishk Upadhyay}")
+        self.assertEqual(b.name, "Kanishk Upadhyay")
+        b2 = Basics(label="{Software Engineer}")
+        self.assertEqual(b2.label, "Software Engineer")
+
 
 if __name__ == "__main__":
     unittest.main()

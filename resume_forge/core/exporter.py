@@ -16,7 +16,8 @@ class ResumeExporter:
         """Generates clean ATS-friendly Markdown."""
         lines = []
         b = self.data.basics
-        lines.append(f"# {b.name}")
+        safe_name = re.sub(r'[{}]', '', b.name).strip() if b.name else ""
+        lines.append(f"# {safe_name}")
         contact_parts = []
         if b.email:
             contact_parts.append(b.email)
@@ -156,6 +157,7 @@ class ResumeExporter:
 
         contact_line = " $|$ ".join(contact_items)
 
+        safe_name = re.sub(r'[{}]', '', b.name).strip() if b.name else ""
         tex = [
             r"\documentclass[letterpaper,10pt]{article}",
             r"\usepackage[T1]{fontenc}",
@@ -215,7 +217,7 @@ class ResumeExporter:
             "",
             r"%----------HEADING----------",
             r"\begin{center}",
-            rf"    \textbf{{\Huge \scshape {esc(b.name)}}} \\ \vspace{{1pt}}",
+            rf"    \textbf{{\Huge \scshape {esc(safe_name)}}} \\ \vspace{{1pt}}",
             rf"    \small {contact_line}",
             r"\end{center}",
             ""
@@ -363,12 +365,13 @@ class ResumeExporter:
             contact_html.append(f'<a href="{p.url}" target="_blank">{p.network}: {clean_u}</a>')
 
         contact_line = " | ".join(contact_html)
+        safe_name = re.sub(r'[{}]', '', b.name).strip() if b.name else ""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{b.name} - Resume</title>
+<title>{safe_name} - Resume</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Latin+Modern+Roman:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -483,7 +486,7 @@ class ResumeExporter:
 <body>
 <div class="resume-page">
   <header>
-    <h1>{html_escape(b.name)}</h1>
+    <h1>{html_escape(safe_name)}</h1>
     <div class="contact-bar">{contact_line}</div>
   </header>
 """

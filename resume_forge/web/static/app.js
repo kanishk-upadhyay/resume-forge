@@ -715,9 +715,11 @@ function renderPreview() {
     contactParts.push(`<a href="${p.url}" target="_blank">${p.url.replace(/^https?:\/\//, '')}</a>`);
   });
 
+  const safeName = (b.name || "Candidate Name").replace(/[{}]/g, '').trim();
+
   let html = `
     <header>
-      <h1>${b.name || "Candidate Name"}</h1>
+      <h1>${safeName}</h1>
       <div class="contact-line">${contactParts.join(" | ")}</div>
     </header>
   `;

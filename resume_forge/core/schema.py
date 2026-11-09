@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Dict, Any
 import json
+import re
 
 
 @dataclass
@@ -31,6 +32,16 @@ class Basics:
     summary: str = ""
     location: Location = field(default_factory=Location)
     profiles: List[Profile] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.name:
+            self.name = re.sub(r'[{}]', '', self.name).strip()
+        if self.label:
+            self.label = re.sub(r'[{}]', '', self.label).strip()
+        if self.email:
+            self.email = re.sub(r'[{}]', '', self.email).strip()
+        if self.phone:
+            self.phone = re.sub(r'[{}]', '', self.phone).strip()
 
 
 @dataclass

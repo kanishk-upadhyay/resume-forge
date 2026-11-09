@@ -35,13 +35,13 @@ ACCENTS_MAP = {
         'a': 'ã', 'n': 'ñ', 'o': 'õ',
         'A': 'Ã', 'N': 'Ñ', 'O': 'Õ'
     },
-    # Caron: \v
-    r"\\v\{?([a-zA-Z])\}?": {
+    # Caron: \v (letter command: must be followed by {ch} or whitespace + ch)
+    r"\\v(?:\s*\{([a-zA-Z])\}|\s+([a-zA-Z]))": {
         'c': 'č', 'd': 'ď', 'e': 'ě', 'l': 'ľ', 'n': 'ň', 'r': 'ř', 's': 'š', 't': 'ť', 'z': 'ž',
         'C': 'Č', 'D': 'Ď', 'E': 'Ě', 'L': 'Ľ', 'N': 'Ň', 'R': 'Ř', 'S': 'Š', 'T': 'Ť', 'Z': 'Ž'
     },
-    # Cedilla: \c
-    r"\\c\{?([a-zA-Z])\}?": {
+    # Cedilla: \c (letter command: must be followed by {ch} or whitespace + ch)
+    r"\\c(?:\s*\{([a-zA-Z])\}|\s+([a-zA-Z]))": {
         'c': 'ç', 'C': 'Ç', 's': 'ş', 'S': 'Ş'
     }
 }
@@ -55,7 +55,7 @@ def clean_latex(text: str) -> str:
     # 1. Unescape LaTeX diacritics & accent macros before stripping general commands
     for pattern, char_map in ACCENTS_MAP.items():
         def _repl(m, cm=char_map):
-            ch = m.group(1)
+            ch = m.group(1) or m.group(2) or (m.group(3) if len(m.groups()) >= 3 else "")
             return cm.get(ch, ch)
         text = re.sub(pattern, _repl, text)
 
@@ -96,13 +96,17 @@ def clean_latex(text: str) -> str:
     
     # 5. Iteratively peel text styling macros (textbf, textit, emph, underline, etc.)
     macro_pattern = r'\\(?:textbf|textit|emph|textsc|texttt|underline|small|footnotesize|large|Large|Huge|scshape)\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
-    for _ in range(4):
+    for _ in range(6):
         if not re.search(macro_pattern, text):
             break
         text = re.sub(macro_pattern, r'\1', text)
     
-    # 6. Inline font switches like {\scshape text} or {\bf text}
-    text = re.sub(r'\{(?:\\[a-zA-Z]+\s+)?([^{}]+)\}', r'\1', text)
+    # 6. Iteratively peel inline font switches and grouping braces like {\scshape text}, {\bf text}, or {text}
+    group_pattern = r'\{(?:\\[a-zA-Z]+\s+)?([^{}]+)\}'
+    for _ in range(6):
+        if not re.search(group_pattern, text):
+            break
+        text = re.sub(group_pattern, r'\1', text)
     
     # 7. Math mode unwrapping: retain inner content (e.g. $10B -> 10B)
     text = re.sub(r'\$([^$]*)\$', r'\1', text)
@@ -137,6 +141,24 @@ def clean_latex(text: str) -> str:
     for pattern, repl in replacements:
         text = re.sub(pattern, repl, text)
         
+    # 10. Strip outer enclosing balanced braces
+    text = text.strip()
+    while text.startswith('{') and text.endswith('}'):
+        depth = 0
+        balanced = True
+        for ch in text[:-1]:
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    balanced = False
+                    break
+        if balanced and depth == 1:
+            text = text[1:-1].strip()
+        else:
+            break
+
     return text.strip()
 
 
@@ -261,29 +283,138 @@ class LatexResumeParser:
         """Extracts candidate contact information, headline, and web profiles."""
         basics = Basics()
         
-        # 1. Name heuristics
-        # ModernCV \name{First}{Last} or Deedy \namesection{First}{Last}{...}
-        two_part_name = re.search(r'\\(?:name|namesection)\s*\{([^}]+)\}\s*\{([^}]+)\}', self.cleaned)
-        if two_part_name:
-            basics.name = f"{clean_latex(two_part_name.group(1))} {clean_latex(two_part_name.group(2))}".strip()
+        # Determine header block before first section
+        if r"\begin{document}" in self.cleaned:
+            after_doc = self.cleaned.split(r"\begin{document}", 1)[1]
+            first_sec_match = re.search(r'\\(?:section|cvsection)\b', after_doc)
+            header_text = after_doc[:first_sec_match.start()] if first_sec_match else after_doc[:2500]
         else:
-            # \textbf{\Huge \scshape Kanishk Upadhyay} or \textbf{\Huge Kanishk Upadhyay}
+            first_sec_match = re.search(r'\\(?:section|cvsection)\b', self.cleaned)
+            header_text = self.cleaned[:first_sec_match.start()] if first_sec_match else self.cleaned[:2500]
+
+        # 1. Name heuristics with balanced brace extraction
+        # ModernCV \name{First}{Last} or Deedy \namesection{First}{Last}{...}
+        m_name = re.search(r'\\(?:name|namesection)\b', header_text) or re.search(r'\\(?:name|namesection)\b', self.cleaned)
+        if m_name:
+            source_tex = header_text if m_name.string is header_text else self.cleaned
+            args, _ = extract_braced_args(source_tex, m_name.end(), max_args=2)
+            if len(args) >= 2:
+                n1 = clean_latex(args[0]).strip("{} \t\r\n")
+                n2 = clean_latex(args[1]).strip("{} \t\r\n")
+                if n1 or n2:
+                    basics.name = f"{n1} {n2}".strip()
+            elif len(args) == 1:
+                basics.name = clean_latex(args[0]).strip("{} \t\r\n")
+
+        # ModernCV \firstname{...} and \familyname{...}
+        if not basics.name:
+            m_fn = re.search(r'\\firstname\b', header_text)
+            m_ln = re.search(r'\\familyname\b', header_text)
+            if m_fn and m_ln:
+                fn_args, _ = extract_braced_args(header_text, m_fn.end(), max_args=1)
+                ln_args, _ = extract_braced_args(header_text, m_ln.end(), max_args=1)
+                if fn_args and ln_args:
+                    n1 = clean_latex(fn_args[0]).strip("{} \t\r\n")
+                    n2 = clean_latex(ln_args[0]).strip("{} \t\r\n")
+                    if n1 or n2:
+                        basics.name = f"{n1} {n2}".strip()
+
+        # \textbf{...} containing \Huge, \huge, \LARGE, \Large, or \scshape
+        if not basics.name:
+            for m in re.finditer(r'\\textbf\b', header_text):
+                args, _ = extract_braced_args(header_text, m.end(), max_args=1)
+                if args:
+                    inner = args[0]
+                    inner_line = re.split(r'\\\\|\n', inner)[0]
+                    if re.search(r'\\(?:Huge|huge|LARGE|Large|scshape)\b', inner) or m.start() < 300:
+                        candidate = clean_latex(inner_line).strip("{} \t\r\n")
+                        candidate = re.sub(r'[{}]', '', candidate).strip()
+                        if candidate and len(candidate.split()) <= 6:
+                            basics.name = candidate
+                            break
+
+        # {\Huge ...} or {\huge ...}
+        if not basics.name:
+            m_huge = re.search(r'\{\s*\\(?:Huge|huge|LARGE|Large)\b', header_text)
+            if m_huge:
+                args, _ = extract_braced_args(header_text, m_huge.start(), max_args=1)
+                if args:
+                    inner_line = re.split(r'\\\\|\n', args[0])[0]
+                    candidate = clean_latex(inner_line).strip("{} \t\r\n")
+                    candidate = re.sub(r'[{}]', '', candidate).strip()
+                    if candidate and len(candidate.split()) <= 6:
+                        basics.name = candidate
+
+        # \Huge \textbf{...} or \huge \textbf{...}
+        if not basics.name:
+            m_size_before = re.search(r'\\(?:Huge|huge|LARGE|Large)\s*\\textbf\b', header_text)
+            if m_size_before:
+                m_tb = re.search(r'\\textbf\b', header_text[m_size_before.start():])
+                if m_tb:
+                    args, _ = extract_braced_args(header_text, m_size_before.start() + m_tb.end(), max_args=1)
+                    if args:
+                        inner_line = re.split(r'\\\\|\n', args[0])[0]
+                        candidate = clean_latex(inner_line).strip("{} \t\r\n")
+                        candidate = re.sub(r'[{}]', '', candidate).strip()
+                        if candidate:
+                            basics.name = candidate
+
+        # \centerline{...}
+        if not basics.name:
+            m_cl = re.search(r'\\centerline\b', header_text)
+            if m_cl:
+                args, _ = extract_braced_args(header_text, m_cl.end(), max_args=1)
+                if args:
+                    inner_line = re.split(r'\\\\|\n', args[0])[0]
+                    candidate = clean_latex(inner_line).strip("{} \t\r\n")
+                    candidate = re.sub(r'[{}]', '', candidate).strip()
+                    if candidate and len(candidate.split()) <= 6:
+                        basics.name = candidate
+
+        # \author{...} or \title{...}
+        if not basics.name:
+            for macro in [r'\\author\b', r'\\title\b']:
+                m_meta = re.search(macro, header_text)
+                if m_meta:
+                    args, _ = extract_braced_args(header_text, m_meta.end(), max_args=1)
+                    if args:
+                        candidate = clean_latex(args[0]).strip("{} \t\r\n")
+                        candidate = re.sub(r'[{}]', '', candidate).strip()
+                        if candidate and len(candidate.split()) <= 6:
+                            basics.name = candidate
+                            break
+
+        # Fallback regex
+        if not basics.name:
             name_match = re.search(r'\\textbf\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
             if not name_match:
-                # {\Huge \scshape Kanishk Upadhyay}
                 name_match = re.search(r'\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}', self.cleaned)
             if not name_match:
-                # \Huge \textbf{Kanishk Upadhyay} or \name{Kanishk Upadhyay}
                 name_match = re.search(r'\\(?:Huge\s*\\textbf|huge\s*\\textbf|name)\{([^}]+)\}', self.cleaned)
             if not name_match:
                 name_match = re.search(r'\\author\{([^}]+)\}', self.cleaned)
+            if not name_match:
+                name_match = re.search(r'\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?\{?([a-zA-Z\s.-]+)', self.cleaned)
             if name_match:
                 basics.name = clean_latex(name_match.group(1))
+
+        # Absolute guarantee: Strip any leftover curly braces from name
+        if basics.name:
+            basics.name = re.sub(r'[{}]', '', basics.name).strip()
+            basics.name = re.sub(r'\s+', ' ', basics.name)
             
         # 2. Headline / Position (e.g. Awesome-CV \position{Software Engineer})
-        pos_match = re.search(r'\\position\{([^}]+)\}', self.cleaned)
+        pos_match = re.search(r'\\position\b', self.cleaned)
         if pos_match:
-            basics.label = clean_latex(pos_match.group(1))
+            pos_args, _ = extract_braced_args(self.cleaned, pos_match.end(), max_args=1)
+            if pos_args:
+                basics.label = clean_latex(pos_args[0]).strip("{} \t\r\n")
+        else:
+            pos_regex = re.search(r'\\position\{([^}]+)\}', self.cleaned)
+            if pos_regex:
+                basics.label = clean_latex(pos_regex.group(1)).strip("{} \t\r\n")
+        if basics.label:
+            basics.label = re.sub(r'[{}]', '', basics.label).strip()
 
         # 3. Email (Standard, \email{...}, or ModernCV)
         email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', self.cleaned)

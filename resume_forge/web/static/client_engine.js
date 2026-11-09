@@ -74,10 +74,15 @@ window.ClientResumeEngine = {
 
     // 1. Name
     const nameMatch = cleaned.match(/\\textbf\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}/) ||
+                      cleaned.match(/\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape\s*)?([^}]+)\}/) ||
+                      cleaned.match(/\\(?:Huge|huge|LARGE|Large)\s*\\textbf\{([^}]+)\}/) ||
                       cleaned.match(/\\name\s*\{([^}]+)\}\s*\{([^}]+)\}/) ||
-                      cleaned.match(/\\author\{([^}]+)\}/);
+                      cleaned.match(/\\namesection\s*\{([^}]+)\}\s*\{([^}]+)\}/) ||
+                      cleaned.match(/\\author\{([^}]+)\}/) ||
+                      cleaned.match(/\\title\{([^}]+)\}/);
     if (nameMatch) {
-      resume.basics.name = nameMatch[2] ? `${this.cleanLatex(nameMatch[1])} ${this.cleanLatex(nameMatch[2])}` : this.cleanLatex(nameMatch[1]);
+      const raw = nameMatch[2] ? `${this.cleanLatex(nameMatch[1])} ${this.cleanLatex(nameMatch[2])}` : this.cleanLatex(nameMatch[1]);
+      resume.basics.name = raw.replace(/[{}]/g, '').trim();
     }
 
     // 2. Email & Phone
@@ -211,6 +216,7 @@ window.ClientResumeEngine = {
 
   generateLatex(resume) {
     const b = resume.basics || {};
+    const safeName = (b.name || "").replace(/[{}]/g, '').trim();
     const esc = (s) => (s || "").replace(/([&%$#_])/g, "\\$1");
 
     const contactParts = [];
@@ -232,7 +238,7 @@ window.ClientResumeEngine = {
 \\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.15in, label={}]}\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
 \\newcommand{\\resumeItemListStart}{\\begin{itemize}}\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
 \\begin{document}
-\\begin{center}\\textbf{\\Huge \\scshape ${esc(b.name)}} \\\\ \\small ${contactParts.join(" $|$ ")}\\end{center}
+\\begin{center}\\textbf{\\Huge \\scshape ${esc(safeName)}} \\\\ \\small ${contactParts.join(" $|$ ")}\\end{center}
 `;
 
     if (resume.education?.length) {
