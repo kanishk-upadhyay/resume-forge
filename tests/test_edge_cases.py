@@ -169,6 +169,178 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(s3, "Fall 2024")
         self.assertEqual(e3, "")
 
+    def test_iso_and_hyphenated_date_preservation(self):
+        """Verify ISO and hyphenated month-year dates are not split internally."""
+        p = LatexResumeParser("")
+        s1, e1 = p._split_dates("2023-01 - 2023-08")
+        self.assertEqual(s1, "2023-01")
+        self.assertEqual(e1, "2023-08")
+
+        s2, e2 = p._split_dates("2023-01-15 -- 2023-08-30")
+        self.assertEqual(s2, "2023-01-15")
+        self.assertEqual(e2, "2023-08-30")
+
+        s3, e3 = p._split_dates("Jan 2022-Present")
+        self.assertEqual(s3, "Jan 2022")
+        self.assertEqual(e3, "Present")
+
+    def test_diacritics_and_accents_preservation(self):
+        """Verify international accents and LaTeX diacritics are properly converted to unicode."""
+        self.assertEqual(clean_latex(r"Pok\'edex"), "Pokédex")
+        self.assertEqual(clean_latex(r"Pok\'{e}dex"), "Pokédex")
+        self.assertEqual(clean_latex(r"Luki\v{c}"), "Lukič")
+        self.assertEqual(clean_latex(r"Fran\c{c}ois"), "François")
+        self.assertEqual(clean_latex(r"M\"uller"), "Müller")
+        self.assertEqual(clean_latex(r"M\"{u}ller"), "Müller")
+        self.assertEqual(clean_latex(r"Pe\~na"), "Peña")
+
+    def test_awesome_cv_5_arg_cventry_and_cvskill(self):
+        """Verify Awesome-CV format with 5-arg \cventry and \cvskill is parsed."""
+        raw = r"""
+        \documentclass{awesome-cv}
+        \name{Alice}{Smith}
+        \position{Cloud Architect}
+        \email{alice@example.com}
+        \mobile{+1 555-0199}
+        \github{alicesmith}
+        \begin{document}
+        \cvsection{Summary}
+        Distributed systems architect with 8+ years experience.
+        \cvsection{Experience}
+        \begin{cventries}
+          \cventry
+            {Staff SRE}
+            {CloudCorp}
+            {Zurich, Switzerland}
+            {Mar. 2024 - Present}
+            {
+              \begin{cvitems}
+                \item {Designed and deployed global Kubernetes clusters.}
+                \item {Reduced p99 latency by 35\% across all microservices.}
+              \end{cvitems}
+            }
+        \end{cventries}
+        \cvsection{Skills}
+        \begin{cvskills}
+          \cvskill
+            {Languages}
+            {Go, Rust, Python, C++}
+        \end{cvskills}
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(data.basics.name, "Alice Smith")
+        self.assertEqual(data.basics.label, "Cloud Architect")
+        self.assertEqual(data.basics.email, "alice@example.com")
+        self.assertIn("alicesmith", [p.username for p in data.basics.profiles])
+        self.assertIn("Distributed systems architect", data.basics.summary)
+        self.assertEqual(len(data.work), 1)
+        self.assertEqual(data.work[0].name, "CloudCorp")
+        self.assertEqual(data.work[0].position, "Staff SRE")
+        self.assertEqual(len(data.work[0].highlights), 2)
+        self.assertEqual(len(data.skills), 1)
+        self.assertEqual(data.skills[0].keywords, ["Go", "Rust", "Python", "C++"])
+
+    def test_hyperlinked_project_heading_nested_braces(self):
+        """Verify \resumeProjectHeading with nested \textbf{\href{...}{Title}} parses without dropping."""
+        raw = r"""
+        \documentclass{article}
+        \begin{document}
+        \section{Projects}
+        \resumeProjectHeading
+          {\textbf{\href{https://github.com/alice/k8s-mesh}{K8sMesh}} $|$ \emph{Go, eBPF}}{Jan 2024}
+        \resumeItemListStart
+          \resumeItem{Engineered zero-overhead service mesh in Go.}
+        \resumeItemListEnd
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(len(data.projects), 1)
+        self.assertEqual(data.projects[0].name, "K8sMesh")
+        self.assertEqual(data.projects[0].url, "https://github.com/alice/k8s-mesh")
+        self.assertEqual(data.projects[0].keywords, ["Go", "eBPF"])
+        self.assertEqual(len(data.projects[0].highlights), 1)
+
+    def test_nested_formatting_bullets(self):
+        """Verify deeply nested formatting in \resumeItem is extracted cleanly."""
+        raw = r"""
+        \documentclass{article}
+        \begin{document}
+        \section{Experience}
+        \resumeSubheading{Role}{2024}{Company}{Loc}
+        \resumeItemListStart
+          \resumeItem{Implemented \textbf{\href{https://example.com}{\underline{ZeroCopy Engine}}} in C++.}
+        \resumeItemListEnd
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(len(data.work), 1)
+        self.assertEqual(len(data.work[0].highlights), 1)
+        self.assertIn("Implemented ZeroCopy Engine in C++.", data.work[0].highlights[0])
+
+    def test_tabular_skills_parsing(self):
+        """Verify tabular LaTeX skills format is extracted cleanly."""
+        raw = r"""
+        \documentclass{article}
+        \begin{document}
+        \section{Skills}
+        \begin{tabular}{ll}
+        \textbf{Languages:} & Go, Python, C++, Rust \\
+        \textbf{Cloud Tools:} & Docker, Kubernetes, Terraform \\
+        \end{tabular}
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(len(data.skills), 2)
+        self.assertEqual(data.skills[0].name, "Languages")
+        self.assertEqual(data.skills[0].keywords, ["Go", "Python", "C++", "Rust"])
+        self.assertEqual(data.skills[1].name, "Cloud Tools")
+
+    def test_ats_formatted_bullets_and_expanded_verbs(self):
+        """Verify ATS action verb detection handles \textbf, markdown bold, and compound verbs like Led, Co-founded."""
+        data = ResumeData(
+            basics=Basics(name="Leader Dev", email="l@example.com", phone="1234567890"),
+            work=[
+                WorkItem(
+                    name="Startup",
+                    position="Lead",
+                    highlights=[
+                        r"\textbf{Led} engineering team of 10 developers.",
+                        "**Built** distributed cache layer serving 100,000 requests per second.",
+                        "Co-founded cloud infrastructure guild across 4 business units."
+                    ]
+                )
+            ]
+        )
+        analyzer = ATSAnalyzer(data)
+        report = analyzer.analyze()
+        self.assertTrue(any("100% of bullet points start with strong action verbs" in s for s in report["strengths"]))
+
+    def test_tailor_mid_sentence_passive_voice(self):
+        """Verify BulletTailor handles mid-sentence passive phrases appropriately."""
+        from resume_forge.core.tailor import BulletTailor
+        data = ResumeData(
+            basics=Basics(name="Dev"),
+            work=[
+                WorkItem(
+                    name="Corp",
+                    position="Backend Dev",
+                    highlights=["Built API backend and was responsible for database indexing."]
+                )
+            ]
+        )
+        tailor = BulletTailor(data)
+        result = tailor.tailor(job_description="Database indexing backend")
+        suggestions = result["suggestions"]
+        self.assertGreaterEqual(len(suggestions), 1)
+        improved = suggestions[0]["improved"]
+        self.assertIn("spearheaded", improved)
+        self.assertNotIn("was responsible for", improved)
+
 
 if __name__ == "__main__":
     unittest.main()

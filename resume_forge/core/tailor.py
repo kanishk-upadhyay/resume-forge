@@ -108,22 +108,45 @@ class BulletTailor:
         improved = bullet.strip()
 
         # Check 1: Weak leading phrases
-        for weak_pattern, (replacement, action_verb) in WEAK_PHRASES_MAP.items():
+        leading_weak = [
+            (r'^\s*(?:was\s+)?(?:responsible for|tasked with|assigned to)\s+', 'Engineered '),
+            (r'^\s*(?:worked on|helped with|assisted with|assisted in)\s+', 'Developed '),
+            (r'^\s*(?:was involved in|participated in)\s+', 'Collaborated on '),
+            (r'^\s*(?:handled|managed routine)\s+', 'Automated and maintained '),
+            (r'^\s*(?:made|did|created simple)\s+', 'Constructed ')
+        ]
+        for weak_pattern, replacement in leading_weak:
             if re.search(weak_pattern, improved, re.IGNORECASE):
-                improved = re.sub(weak_pattern, replacement, improved, flags=re.IGNORECASE)
+                improved = re.sub(weak_pattern, replacement, improved, count=1, flags=re.IGNORECASE)
                 needs_improvement = True
                 reasons.append("Replaced weak or passive opening phrase with an assertive action verb.")
                 break
 
+        # Check 1b: Mid-sentence passive phrases
+        mid_weak = [
+            (r'\bwas responsible for\s+', 'spearheaded '),
+            (r'\bresponsible for\s+', 'directing '),
+            (r'\bhelped with\s+', 'accelerating '),
+            (r'\bassisted in\s+', 'facilitating ')
+        ]
+        for weak_pattern, replacement in mid_weak:
+            if re.search(weak_pattern, improved, re.IGNORECASE):
+                improved = re.sub(weak_pattern, replacement, improved, count=1, flags=re.IGNORECASE)
+                needs_improvement = True
+                reasons.append("Replaced passive phrasing with an active verb.")
+                break
+
         # Check 2: First word should be a strong past-tense action verb
-        words = re.findall(r'\b[a-zA-Z]+\b', improved)
+        clean_first = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', improved)
+        clean_first = clean_first.replace('**', '').replace('__', '').replace('*', '')
+        words = re.findall(r'\b[a-zA-Z]+(?:-[a-zA-Z]+)?\b', clean_first)
         if words and words[0].lower() not in STRONG_ACTION_VERBS:
             needs_improvement = True
             reasons.append(f"Opening word '{words[0]}' is not a recognized impact verb.")
 
         # Check 3: Missing quantifiable metrics
         has_metric = bool(re.search(
-            r'(?:\b\d+%(?!\w)|\$\d+|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|ms|seconds|minutes|lines|stars|commits)\b)',
+            r'(?:\b\d+(?:\.\d+)?%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:\.\d+)?\s*(?:x|X)\b|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|rps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks|queries)\b)',
             improved,
             re.IGNORECASE
         ))

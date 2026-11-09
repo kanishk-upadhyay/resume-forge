@@ -5,14 +5,19 @@ from typing import Dict, List, Any
 from .schema import ResumeData
 
 STRONG_ACTION_VERBS = {
-    "accelerated", "achieved", "architected", "automated", "built", "centralized",
-    "collaborated", "constructed", "created", "debugged", "decreased", "delivered",
-    "deployed", "designed", "developed", "diagnosed", "engineered", "enhanced",
-    "established", "executed", "formulated", "implemented", "improved", "increased",
-    "initiated", "installed", "integrated", "launched", "maintained", "managed",
-    "migrated", "modernized", "monitored", "optimized", "orchestrated", "overhauled",
-    "patched", "pioneered", "refactored", "resolved", "restructured", "revamped",
-    "scaled", "spearheaded", "standardized", "streamlined", "strengthened", "tested"
+    "accelerated", "achieved", "analyzed", "architected", "authored", "automated",
+    "boosted", "built", "centralized", "championed", "co-authored", "co-founded",
+    "collaborated", "conducted", "constructed", "created", "cut", "debugged",
+    "decreased", "delivered", "deployed", "designed", "developed", "diagnosed",
+    "directed", "drove", "earned", "engineered", "enhanced", "established",
+    "executed", "formulated", "founded", "generated", "guided", "headed",
+    "implemented", "improved", "increased", "initiated", "installed", "integrated",
+    "launched", "led", "leveraged", "maintained", "managed", "mentored",
+    "migrated", "modeled", "modernized", "monitored", "negotiated", "optimized",
+    "orchestrated", "overhauled", "patched", "pioneered", "published", "quantified",
+    "re-architected", "reduced", "refactored", "resolved", "restructured", "revamped",
+    "saved", "scaled", "secured", "spearheaded", "standardized", "streamlined",
+    "strengthened", "tested", "trained"
 }
 
 SHORT_TECH_TERMS = {
@@ -101,12 +106,15 @@ class ATSAnalyzer:
         metric_count = 0
 
         metric_pattern = re.compile(
-            r'(?:\b\d+%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks)\b)',
+            r'(?:\b\d+(?:\.\d+)?%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:\.\d+)?\s*(?:x|X)\b|\b\d+(?:,\d+)*(?:\+)?\s*(?:users|requests|qps|rps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks|queries|downloads|clients|subscribers)\b)',
             re.IGNORECASE
         )
 
         for bullet in all_bullets:
-            words = re.findall(r'\b[a-zA-Z]+\b', bullet.lower())
+            clean_b = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt|underline)\s*\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', bullet)
+            clean_b = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', clean_b)
+            clean_b = clean_b.replace('**', '').replace('__', '').replace('*', '')
+            words = re.findall(r'\b[a-zA-Z]+(?:-[a-zA-Z]+)?\b', clean_b.lower())
             if words and words[0] in STRONG_ACTION_VERBS:
                 action_verb_count += 1
             if metric_pattern.search(bullet):

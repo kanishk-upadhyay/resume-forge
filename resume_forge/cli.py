@@ -72,11 +72,16 @@ def cmd_compile(args):
         output_pdf_path=out_pdf,
         font_size_pt=args.font_size,
         line_height=args.line_height,
-        margin_in=args.margin
+        margin_in=args.margin,
+        auto_fit=not getattr(args, "no_auto_fit", False)
     )
 
     if success:
-        print(f"✓ Single-page PDF compiled successfully in-house: {out_pdf}")
+        pages = compiler.get_pdf_page_count(out_pdf)
+        if pages == 1:
+            print(f"✓ Single-page PDF compiled successfully in-house (1 page): {out_pdf}")
+        else:
+            print(f"✓ PDF compiled successfully ({pages} pages): {out_pdf}")
     else:
         print(f"✗ Failed to compile PDF. Ensure Google Chrome is installed.", file=sys.stderr)
         sys.exit(1)
@@ -273,6 +278,7 @@ def main():
     p_compile.add_argument("--font-size", type=float, default=10.0, help="Base font size in pt (default: 10.0)")
     p_compile.add_argument("--line-height", type=float, default=1.25, help="Line height multiplier (default: 1.25)")
     p_compile.add_argument("--margin", type=float, default=0.4, help="Page margin in inches (default: 0.4)")
+    p_compile.add_argument("--no-auto-fit", action="store_true", help="Disable automatic single-page font/margin compression")
     p_compile.set_defaults(func=cmd_compile)
 
     # export

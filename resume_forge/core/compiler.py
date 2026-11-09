@@ -1,5 +1,6 @@
 """In-house PDF Compiler: Compiles LaTeX and HTML resumes directly on macOS without Overleaf."""
 
+import re
 import os
 import shutil
 import subprocess
@@ -113,15 +114,53 @@ class ResumeCompiler:
 
         return False, "Neither Tectonic nor pdflatex is installed on this machine."
 
+    @staticmethod
+    def get_pdf_page_count(pdf_path: str) -> int:
+        """Reads generated PDF file and returns exact page count."""
+        p = Path(pdf_path)
+        if not p.exists():
+            return 0
+        try:
+            data = p.read_bytes()
+            pages = re.findall(rb'/Type\s*/Page\b', data)
+            return len(pages)
+        except Exception:
+            return 0
+
     def compile_resume(
         self,
         data: ResumeData,
         output_pdf_path: str,
         font_size_pt: float = 10.0,
         line_height: float = 1.25,
-        margin_in: float = 0.4
+        margin_in: float = 0.4,
+        auto_fit: bool = True
     ) -> bool:
-        """Generates single-page PDF directly using the in-house Chrome engine."""
+        """Generates single-page PDF directly using the in-house Chrome engine.
+        
+        If auto_fit=True and content overflows onto page 2, progressively scales
+        font size and margins to enforce a strict single-page fit.
+        """
         exporter = ResumeExporter(data)
         html = exporter.to_html(font_size_pt=font_size_pt, line_height=line_height, margin_in=margin_in)
-        return self.compile_html_to_pdf(html, output_pdf_path, margin_in=margin_in)
+        success = self.compile_html_to_pdf(html, output_pdf_path, margin_in=margin_in)
+        if not success:
+            return False
+
+        if auto_fit:
+            pages = self.get_pdf_page_count(output_pdf_path)
+            if pages > 1:
+                # Progressive compression tiers to achieve single-page fit
+                tiers = [
+                    (9.5, 1.20, 0.35),
+                    (9.0, 1.15, 0.30),
+                    (8.5, 1.10, 0.28),
+                    (8.0, 1.05, 0.25)
+                ]
+                for f_pt, lh, m_in in tiers:
+                    html_squeeze = exporter.to_html(font_size_pt=f_pt, line_height=lh, margin_in=m_in)
+                    self.compile_html_to_pdf(html_squeeze, output_pdf_path, margin_in=m_in)
+                    if self.get_pdf_page_count(output_pdf_path) <= 1:
+                        break
+
+        return True

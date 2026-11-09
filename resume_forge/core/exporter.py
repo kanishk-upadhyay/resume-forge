@@ -31,6 +31,11 @@ class ResumeExporter:
         lines.append(" | ".join(contact_parts))
         lines.append("\n---\n")
 
+        if b.summary:
+            lines.append("## Professional Summary")
+            lines.append(b.summary)
+            lines.append("")
+
         if self.data.education:
             lines.append("## Education")
             for edu in self.data.education:
@@ -93,6 +98,7 @@ class ResumeExporter:
             s = re.sub(r'(?<!\\)\$', r'\$', s)
             s = re.sub(r'(?<!\\)#', r'\#', s)
             s = re.sub(r'(?<!\\)_', r'\_', s)
+            s = s.replace('<', r'\textless{}').replace('>', r'\textgreater{}')
             return s
 
         contact_items = []
@@ -113,6 +119,7 @@ class ResumeExporter:
 
         tex = [
             r"\documentclass[letterpaper,10pt]{article}",
+            r"\usepackage[T1]{fontenc}",
             r"\usepackage{latexsym}",
             r"\usepackage[empty]{fullpage}",
             r"\usepackage{titlesec}",
@@ -174,6 +181,14 @@ class ResumeExporter:
             r"\end{center}",
             ""
         ]
+
+        # Professional Summary
+        if b.summary:
+            tex.append(r"%-----------SUMMARY-----------")
+            tex.append(r"\section{Professional Summary}")
+            tex.append(rf"{esc(b.summary)}")
+            tex.append(r"\vspace{-4pt}")
+            tex.append("")
 
         # Education
         if self.data.education:
@@ -395,10 +410,20 @@ class ResumeExporter:
 <body>
 <div class="resume-page">
   <header>
-    <h1>{b.name}</h1>
+    <h1>{html_escape(b.name)}</h1>
     <div class="contact-bar">{contact_line}</div>
   </header>
 """
+
+        # Professional Summary
+        if b.summary:
+            html += f"""
+  <section>
+    <div class="section-title">Professional Summary</div>
+    <div style="font-size: {font_size_pt * 0.92}pt; line-height: {line_height * 0.95}; margin-top: 2px;">
+      {html_escape(b.summary)}
+    </div>
+  </section>"""
 
         # Education
         if self.data.education:
@@ -409,12 +434,12 @@ class ResumeExporter:
                 dates = f"{edu.start_date} – {edu.end_date}" if edu.end_date else edu.start_date
                 html += f"""
     <div class="item-header">
-      <div class="item-title">{edu.institution}</div>
+      <div class="item-title">{html_escape(edu.institution)}</div>
       <div class="item-date">{dates}</div>
     </div>
     <div class="item-header">
-      <div class="item-subtitle">{edu.study_type}</div>
-      <div class="item-location">{edu.area}</div>
+      <div class="item-subtitle">{html_escape(edu.study_type)}</div>
+      <div class="item-location">{html_escape(edu.area)}</div>
     </div>"""
                 if edu.highlights:
                     html += '<ul class="bullets">'

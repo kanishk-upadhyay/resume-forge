@@ -5,6 +5,18 @@ window.ClientResumeEngine = {
   cleanLatex(text) {
     if (!text) return "";
     let t = text;
+
+    // 1. Accents and diacritics
+    t = t.replace(/\\\'\{?([a-zA-Z])\}?/g, (m, c) => ({ a:'á', e:'é', i:'í', o:'ó', u:'ú', y:'ý', A:'Á', E:'É', I:'Í', O:'Ó', U:'Ú' }[c] || c))
+         .replace(/\\`\{?([a-zA-Z])\}?/g, (m, c) => ({ a:'à', e:'è', i:'ì', o:'ò', u:'ù', A:'À', E:'È', I:'Ì', O:'Ò', U:'Ù' }[c] || c))
+         .replace(/\\\"\{?([a-zA-Z])\}?/g, (m, c) => ({ a:'ä', e:'ë', i:'ï', o:'ö', u:'ü', A:'Ä', E:'Ë', I:'Ï', O:'Ö', U:'Ü' }[c] || c))
+         .replace(/\\\^\{?([a-zA-Z])\}?/g, (m, c) => ({ a:'â', e:'ê', i:'î', o:'ô', u:'û', A:'Â', E:'Ê', I:'Î', O:'Ô', U:'Û' }[c] || c))
+         .replace(/\\~\{?([a-zA-Z])\}?/g, (m, c) => ({ a:'ã', n:'ñ', o:'õ', A:'Ã', N:'Ñ', O:'Õ' }[c] || c))
+         .replace(/\\v\{?([a-zA-Z])\}?/g, (m, c) => ({ c:'č', s:'š', z:'ž', r:'ř', d:'ď', t:'ť', C:'Č', S:'Š', Z:'Ž' }[c] || c))
+         .replace(/\\c\{?([a-zA-Z])\}?/g, (m, c) => ({ c:'ç', C:'Ç' }[c] || c))
+         .replace(/\\aa\b/g, 'å').replace(/\\AA\b/g, 'Å').replace(/\\ss\b/g, 'ß')
+         .replace(/\\o\b/g, 'ø').replace(/\\O\b/g, 'Ø').replace(/\\ae\b/g, 'æ').replace(/\\AE\b/g, 'Æ');
+
     t = t.replace(/\$\s*(?:\\vert|\|)\s*\$/g, " | ");
     t = t.replace(/\\href\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$2");
     t = t.replace(/\\url\{([^}]+)\}/g, "$1");
@@ -32,6 +44,13 @@ window.ClientResumeEngine = {
          .replace(/\s+/g, " ");
 
     return t.trim();
+  },
+
+  splitDates(dateStr) {
+    if (!dateStr) return ["", ""];
+    const parts = dateStr.split(/\s*(?:–|—|--|\s+to\s+|\s+-\s+|(?<=\d)-(?=[a-zA-Z]))\s*/);
+    if (parts.length >= 2) return [parts[0].trim(), parts[1].trim()];
+    return [dateStr.trim(), ""];
   },
 
   stripComments(content) {
@@ -98,12 +117,14 @@ window.ClientResumeEngine = {
 
       const bullets = [...block.matchAll(/\\resumeItem\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map(b => this.cleanLatex(b[1]));
 
+      const [sDate, eDate] = this.splitDates(a2);
+
       if (a1.toLowerCase().includes("university") || a3.toLowerCase().includes("bachelor") || a3.toLowerCase().includes("degree")) {
         resume.education.push({
           institution: a1,
           study_type: a3,
-          start_date: a2.split(/[–—\-]/)[0]?.trim() || a2,
-          end_date: a2.split(/[–—\-]/)[1]?.trim() || "",
+          start_date: sDate,
+          end_date: eDate,
           area: a4,
           highlights: bullets
         });
@@ -118,8 +139,8 @@ window.ClientResumeEngine = {
           position: a1,
           name: a3,
           location: a4,
-          start_date: a2.split(/[–—\-]/)[0]?.trim() || a2,
-          end_date: a2.split(/[–—\-]/)[1]?.trim() || "",
+          start_date: sDate,
+          end_date: eDate,
           highlights: bullets
         });
       }
@@ -147,9 +168,33 @@ window.ClientResumeEngine = {
       });
     });
 
-    // 6. Skills
+    // 6. Professional Summary
+    const sumMatch = cleaned.match(/\\(?:section|cvsection)\*?\{(?:Summary|Professional Summary|Objective|About Me)\}([\s\S]*?)(?=\\(?:section|cvsection)|\$)/i);
+    if (sumMatch) {
+      resume.basics.summary = this.cleanLatex(sumMatch[1]);
+    }
+
+    // 7. Skills
     const skillLines = cleaned.split("\n");
     skillLines.forEach(l => {
+      // Awesome-CV \cvskill{Category}{Skills}
+      const cvSkillMatch = l.match(/\\cvskill\{([^}]+)\}\{([^}]+)\}/);
+      if (cvSkillMatch) {
+        const cat = this.cleanLatex(cvSkillMatch[1]).replace(":", "").trim();
+        const kw = this.cleanLatex(cvSkillMatch[2]).split(/[,|•]/).map(k => k.trim()).filter(Boolean);
+        if (cat && kw.length) resume.skills.push({ name: cat, keywords: kw });
+        return;
+      }
+
+      // Tabular skills: \textbf{Languages:} & Python, C++
+      const tabMatch = l.match(/\\textbf\{([^}]+)\}:?\s*&\s*([^\\]+)/);
+      if (tabMatch) {
+        const cat = this.cleanLatex(tabMatch[1]).replace(":", "").trim();
+        const kw = this.cleanLatex(tabMatch[2]).split(/[,|•]/).map(k => k.trim()).filter(Boolean);
+        if (cat && kw.length) resume.skills.push({ name: cat, keywords: kw });
+        return;
+      }
+
       const sm = l.match(/\\textbf\{([^}]+)\}\s*(?:\{:?\s*|:\s*)([^}\\]+)/);
       if (sm) {
         const cat = this.cleanLatex(sm[1]).replace(":", "").trim();

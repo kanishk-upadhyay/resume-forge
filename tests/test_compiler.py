@@ -32,6 +32,39 @@ class TestResumeCompiler(unittest.TestCase):
             self.assertTrue(out_pdf.exists(), "Output PDF must exist.")
             self.assertGreater(out_pdf.stat().st_size, 1000, "PDF must not be empty.")
 
+    def test_auto_fit_compression_for_overflowing_resume(self):
+        """Verify overflowing multi-page content is squeezed into a strict 1-page PDF when auto_fit=True."""
+        from resume_forge.core.schema import WorkItem, EducationItem, SkillItem, Basics, ResumeData
+        work_items = [
+            WorkItem(
+                name=f"Enterprise Corp {i}",
+                position="Staff Engineer",
+                start_date="2020",
+                end_date="2024",
+                highlights=[f"Bullet {j} demonstrating architectural optimizations and scale across distributed nodes with Kubernetes." for j in range(3)]
+            )
+            for i in range(10)
+        ]
+        overflow_data = ResumeData(
+            basics=Basics(name="Scale Engineer", email="eng@example.com", phone="1234567890"),
+            education=[EducationItem(institution="MIT", study_type="B.S. CS", start_date="2016", end_date="2020")],
+            work=work_items,
+            skills=[SkillItem(name="Langs", keywords=["Go", "Python", "C++"])]
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            no_fit_pdf = Path(tmpdir) / "no_fit.pdf"
+            fit_pdf = Path(tmpdir) / "with_fit.pdf"
+
+            self.compiler.compile_resume(overflow_data, str(no_fit_pdf), auto_fit=False)
+            self.compiler.compile_resume(overflow_data, str(fit_pdf), auto_fit=True)
+
+            pages_no_fit = self.compiler.get_pdf_page_count(str(no_fit_pdf))
+            pages_fit = self.compiler.get_pdf_page_count(str(fit_pdf))
+
+            self.assertGreater(pages_no_fit, 1, "Without auto-fit, 10 jobs should spill onto page 2.")
+            self.assertEqual(pages_fit, 1, "With auto-fit, content must be squeezed onto exactly 1 page.")
+
 
 if __name__ == "__main__":
     unittest.main()
