@@ -113,17 +113,23 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
         margin = float(req_data.get("margin", 0.4))
 
         compiler = ResumeCompiler()
-        exporter = ResumeExporter(data)
-        html = exporter.to_html(font_size_pt=font_size, line_height=line_height, margin_in=margin)
-
         output_pdf = STATIC_DIR / "latest_resume.pdf"
-        success = compiler.compile_html_to_pdf(html, str(output_pdf), margin_in=margin)
+        success = compiler.compile_resume(
+            data=data,
+            output_pdf_path=str(output_pdf),
+            font_size_pt=font_size,
+            line_height=line_height,
+            margin_in=margin,
+            auto_fit=True
+        )
 
         if success and output_pdf.exists():
+            pages = compiler.get_pdf_page_count(str(output_pdf))
             self._send_json({
                 "success": True,
                 "pdf_url": "/latest_resume.pdf",
-                "message": "Single-page PDF compiled successfully in-house!"
+                "pages": pages,
+                "message": f"Single-page PDF compiled successfully in-house ({pages} page)!"
             })
         else:
             self._send_json({

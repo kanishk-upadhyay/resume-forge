@@ -2,7 +2,11 @@
 
 import re
 from typing import Dict, List, Tuple, Optional, Any
-from .schema import ResumeData, Basics, WorkItem, EducationItem, ProjectItem, SkillItem, OpenSourceItem, Profile, Location
+from .schema import (
+    ResumeData, Basics, WorkItem, EducationItem, ProjectItem, SkillItem,
+    OpenSourceItem, Profile, Location, CertificateItem, AwardItem,
+    PublicationItem, LanguageItem
+)
 
 
 ACCENTS_MAP = {
@@ -157,7 +161,9 @@ class LatexResumeParser:
         self.cleaned = self._strip_comments(latex_content)
 
     def _strip_comments(self, content: str) -> str:
-        """Strips out LaTeX comment lines and trailing comments."""
+        """Strips out LaTeX comment lines and trailing comments, while protecting unescaped % after numbers."""
+        # Auto-escape unescaped % preceded by digits to prevent truncating bullets with percentage metrics
+        content = re.sub(r'(\d+)\s*%(?=[a-zA-Z\s.,;:!?)])', r'\1\\%', content)
         lines = []
         for line in content.splitlines():
             # Avoid matching escaped \%
@@ -176,6 +182,10 @@ class LatexResumeParser:
         projects = []
         skills = []
         open_source = []
+        certificates = []
+        awards = []
+        publications = []
+        languages = []
 
         for title, body in sections:
             lower_title = title.lower()
@@ -193,6 +203,14 @@ class LatexResumeParser:
                 skills.extend(self._parse_skills(body))
             elif any(k in lower_title for k in ("open source", "contributions", "community")):
                 open_source.extend(self._parse_open_source(body))
+            elif any(k in lower_title for k in ("certificate", "certification", "licenses")):
+                certificates.extend(self._parse_certificates(body))
+            elif any(k in lower_title for k in ("award", "honor", "achievement")):
+                awards.extend(self._parse_awards(body))
+            elif any(k in lower_title for k in ("publication", "paper", "research")):
+                publications.extend(self._parse_publications(body))
+            elif any(k in lower_title for k in ("language", "spoken languages")):
+                languages.extend(self._parse_languages(body))
             else:
                 # Default heuristics: check if looks like projects or experience
                 if "\\resumeSubheading" in body or "\\cventry" in body:
@@ -206,7 +224,11 @@ class LatexResumeParser:
             education=education,
             projects=projects,
             skills=skills,
-            open_source=open_source
+            open_source=open_source,
+            certificates=certificates,
+            awards=awards,
+            publications=publications,
+            languages=languages
         )
 
     def _parse_basics(self) -> Basics:
@@ -214,8 +236,8 @@ class LatexResumeParser:
         basics = Basics()
         
         # 1. Name heuristics
-        # ModernCV \name{First}{Last}
-        two_part_name = re.search(r'\\name\s*\{([^}]+)\}\s*\{([^}]+)\}', self.cleaned)
+        # ModernCV \name{First}{Last} or Deedy \namesection{First}{Last}{...}
+        two_part_name = re.search(r'\\(?:name|namesection)\s*\{([^}]+)\}\s*\{([^}]+)\}', self.cleaned)
         if two_part_name:
             basics.name = f"{clean_latex(two_part_name.group(1))} {clean_latex(two_part_name.group(2))}".strip()
         else:
@@ -362,7 +384,7 @@ class LatexResumeParser:
         # Pattern 2: \item ...
         items = re.split(r'\\item\b', text)
         for item in items[1:]:
-            clean_item = re.split(r'\\end\{(?:itemize|enumerate|cvitems)\}', item)[0]
+            clean_item = re.split(r'\\end\{(?:itemize|enumerate|cvitems|tightemize)\}', item)[0]
             clean_item = re.sub(r'^\s*\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', clean_item)
             c = clean_latex(clean_item)
             if c:
@@ -444,6 +466,35 @@ class LatexResumeParser:
 
         if work_items:
             return work_items
+
+        # Pattern 3: Deedy format \runsubsection{Company} \descript{| Role} \location{Dates | Loc}
+        if r"\runsubsection" in body:
+            blocks = re.split(r'(?=\\runsubsection\b)', body)
+            for block in blocks:
+                if not block.strip():
+                    continue
+                co_match = re.search(r'\\runsubsection\{([^}]+)\}', block)
+                desc_match = re.search(r'\\descript\{([^}]+)\}', block)
+                loc_match = re.search(r'\\location\{([^}]+)\}', block)
+                bullets = self._parse_bullets(block)
+                if co_match:
+                    company = clean_latex(co_match.group(1))
+                    role = clean_latex(desc_match.group(1)).lstrip('|').strip() if desc_match else ""
+                    raw_loc = clean_latex(loc_match.group(1)) if loc_match else ""
+                    loc_parts = [p.strip() for p in raw_loc.split('|')]
+                    dates = loc_parts[0] if loc_parts else ""
+                    location = loc_parts[1] if len(loc_parts) > 1 else ""
+                    start_date, end_date = self._split_dates(dates)
+                    work_items.append(WorkItem(
+                        name=company,
+                        position=role,
+                        location=location,
+                        start_date=start_date,
+                        end_date=end_date,
+                        highlights=bullets
+                    ))
+            if work_items:
+                return work_items
 
         # Fallback: custom tabular or \textbf headings
         blocks = re.split(r'(?=\\textbf\{[^}]+\}\s*\\hfill)', body)
@@ -537,6 +588,35 @@ class LatexResumeParser:
 
         if edu_items:
             return edu_items
+
+        # Pattern 3: Deedy format \runsubsection{University} \descript{| Degree} \location{Dates | Loc}
+        if r"\runsubsection" in body:
+            blocks = re.split(r'(?=\\runsubsection\b)', body)
+            for block in blocks:
+                if not block.strip():
+                    continue
+                inst_match = re.search(r'\\runsubsection\{([^}]+)\}', block)
+                desc_match = re.search(r'\\descript\{([^}]+)\}', block)
+                loc_match = re.search(r'\\location\{([^}]+)\}', block)
+                bullets = self._parse_bullets(block)
+                if inst_match:
+                    inst = clean_latex(inst_match.group(1))
+                    deg = clean_latex(desc_match.group(1)).lstrip('|').strip() if desc_match else ""
+                    raw_loc = clean_latex(loc_match.group(1)) if loc_match else ""
+                    loc_parts = [p.strip() for p in raw_loc.split('|')]
+                    dates = loc_parts[0] if loc_parts else ""
+                    area = loc_parts[1] if len(loc_parts) > 1 else ""
+                    start_date, end_date = self._split_dates(dates)
+                    edu_items.append(EducationItem(
+                        institution=inst,
+                        study_type=deg,
+                        area=area,
+                        start_date=start_date,
+                        end_date=end_date,
+                        highlights=bullets
+                    ))
+            if edu_items:
+                return edu_items
 
         # Fallback
         lines = [line.strip() for line in body.splitlines() if line.strip()]
@@ -693,6 +773,76 @@ class LatexResumeParser:
             os_items.append(OpenSourceItem(project="Community Contributions", highlights=bullets))
 
         return os_items
+
+    def _parse_certificates(self, body: str) -> List[CertificateItem]:
+        """Parses certifications and licenses."""
+        certs = []
+        sub_pat = r'\\resumeSubheading\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
+        for m in re.finditer(sub_pat, body):
+            a1, a2, a3, a4 = [clean_latex(s) for s in m.groups()]
+            certs.append(CertificateItem(name=a1, date=a2, issuer=a3))
+        if certs:
+            return certs
+
+        bullets = self._parse_bullets(body)
+        for b in bullets:
+            date_match = re.search(r'\((\d{4}(?:[-/]\d{2})?)\)', b)
+            date = date_match.group(1) if date_match else ""
+            clean_name = re.sub(r'\(\d{4}(?:[-/]\d{2})?\)', '', b).strip().rstrip('–-')
+            certs.append(CertificateItem(name=clean_name, date=date))
+        return certs
+
+    def _parse_awards(self, body: str) -> List[AwardItem]:
+        """Parses honors, awards, and hackathon accomplishments."""
+        awards = []
+        pos = 0
+        while True:
+            idx = body.find(r'\cvhonor', pos)
+            if idx == -1:
+                break
+            args, next_pos = extract_braced_args(body, idx + len(r'\cvhonor'), 4)
+            if len(args) == 4:
+                award, event, loc, date = [clean_latex(s) for s in args]
+                awards.append(AwardItem(title=award, awarder=event, date=date, summary=loc))
+                pos = next_pos
+            else:
+                pos = idx + len(r'\cvhonor')
+        if awards:
+            return awards
+
+        bullets = self._parse_bullets(body)
+        for b in bullets:
+            date_match = re.search(r'\((\d{4})\)', b)
+            date = date_match.group(1) if date_match else ""
+            title = re.sub(r'\(\d{4}\)', '', b).strip().rstrip('–-')
+            awards.append(AwardItem(title=title, date=date))
+        return awards
+
+    def _parse_publications(self, body: str) -> List[PublicationItem]:
+        """Parses publications and research papers."""
+        pubs = []
+        bullets = self._parse_bullets(body)
+        for b in bullets:
+            date_match = re.search(r'\b(19\d{2}|20\d{2})\b', b)
+            date = date_match.group(0) if date_match else ""
+            pubs.append(PublicationItem(name=b, release_date=date))
+        return pubs
+
+    def _parse_languages(self, body: str) -> List[LanguageItem]:
+        """Parses spoken and natural languages."""
+        langs = []
+        bullets = self._parse_bullets(body)
+        for b in bullets:
+            parts = re.split(r'[,;]', b)
+            for p in parts:
+                m = re.match(r'([A-Za-z\s]+)(?:\(([^)]+)\)|:\s*([A-Za-z\s]+))', p.strip())
+                if m:
+                    lang = m.group(1).strip()
+                    fluency = (m.group(2) or m.group(3) or "").strip()
+                    langs.append(LanguageItem(language=lang, fluency=fluency))
+                elif p.strip():
+                    langs.append(LanguageItem(language=p.strip()))
+        return langs
 
     def _split_dates(self, date_str: str) -> Tuple[str, str]:
         """Normalizes date ranges like '06/2025 -- 12/2025' or 'May 2023 - Present' without breaking ISO dates."""

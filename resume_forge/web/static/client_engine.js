@@ -54,7 +54,8 @@ window.ClientResumeEngine = {
   },
 
   stripComments(content) {
-    return content.split("\n").map(line => {
+    const protectedContent = content.replace(/(\d+)\s*%(?=[a-zA-Z\s.,;:!?)])/g, "$1\\%");
+    return protectedContent.split("\n").map(line => {
       const parts = line.split(/(?<!\\)%/);
       return parts[0] || "";
     }).join("\n");

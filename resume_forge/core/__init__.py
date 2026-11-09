@@ -1,6 +1,10 @@
 """Resume Forge core engine components."""
 
-from .schema import ResumeData, Basics, WorkItem, EducationItem, ProjectItem, SkillItem, OpenSourceItem, Profile, Location
+from .schema import (
+    ResumeData, Basics, WorkItem, EducationItem, ProjectItem, SkillItem,
+    OpenSourceItem, Profile, Location, CertificateItem, AwardItem,
+    PublicationItem, LanguageItem
+)
 from .parser import LatexResumeParser, clean_latex
 from .exporter import ResumeExporter
 from .compiler import ResumeCompiler
@@ -16,6 +20,10 @@ __all__ = [
     "ProjectItem",
     "SkillItem",
     "OpenSourceItem",
+    "CertificateItem",
+    "AwardItem",
+    "PublicationItem",
+    "LanguageItem",
     "Profile",
     "Location",
     "LatexResumeParser",

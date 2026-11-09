@@ -37,14 +37,16 @@ class VariantManager:
         if not src.exists():
             raise FileNotFoundError(f"Source resume file not found: {source_path}")
 
-        dest = self.variants_dir / f"{name}{src.suffix}"
+        safe_name = Path(name).name
+        dest = self.variants_dir / f"{safe_name}{src.suffix}"
         shutil.copy(src, dest)
         return dest
 
     def get_variant_path(self, name: str) -> Optional[Path]:
         """Finds the path to a variant by name."""
+        safe_name = Path(name).name
         for ext in (".tex", ".json"):
-            candidate = self.variants_dir / f"{name}{ext}"
+            candidate = self.variants_dir / f"{safe_name}{ext}"
             if candidate.exists():
                 return candidate
         return None

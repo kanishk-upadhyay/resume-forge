@@ -86,6 +86,37 @@ class OpenSourceItem:
 
 
 @dataclass
+class CertificateItem:
+    name: str = ""
+    date: str = ""
+    issuer: str = ""
+    url: str = ""
+
+
+@dataclass
+class AwardItem:
+    title: str = ""
+    date: str = ""
+    awarder: str = ""
+    summary: str = ""
+
+
+@dataclass
+class PublicationItem:
+    name: str = ""
+    publisher: str = ""
+    release_date: str = ""
+    url: str = ""
+    summary: str = ""
+
+
+@dataclass
+class LanguageItem:
+    language: str = ""
+    fluency: str = ""
+
+
+@dataclass
 class ResumeData:
     basics: Basics = field(default_factory=Basics)
     work: List[WorkItem] = field(default_factory=list)
@@ -93,6 +124,10 @@ class ResumeData:
     projects: List[ProjectItem] = field(default_factory=list)
     skills: List[SkillItem] = field(default_factory=list)
     open_source: List[OpenSourceItem] = field(default_factory=list)
+    certificates: List[CertificateItem] = field(default_factory=list)
+    awards: List[AwardItem] = field(default_factory=list)
+    publications: List[PublicationItem] = field(default_factory=list)
+    languages: List[LanguageItem] = field(default_factory=list)
     meta: Dict[str, Any] = field(default_factory=lambda: {
         "version": "1.0.0",
         "canonical": "https://jsonresume.org/schema/",
@@ -143,6 +178,29 @@ class ResumeData:
             OpenSourceItem(**{k: v for k, v in item.items() if k in OpenSourceItem.__annotations__})
             for item in data.get("open_source", [])
         ]
+
+        certificates = [
+            CertificateItem(**{k: v for k, v in item.items() if k in CertificateItem.__annotations__})
+            for item in data.get("certificates", [])
+        ]
+
+        awards = [
+            AwardItem(**{k: v for k, v in item.items() if k in AwardItem.__annotations__})
+            for item in data.get("awards", [])
+        ]
+
+        raw_pubs = data.get("publications", [])
+        publications = []
+        for pub in raw_pubs:
+            p_dict = dict(pub)
+            if "releaseDate" in p_dict and "release_date" not in p_dict:
+                p_dict["release_date"] = p_dict["releaseDate"]
+            publications.append(PublicationItem(**{k: v for k, v in p_dict.items() if k in PublicationItem.__annotations__}))
+
+        languages = [
+            LanguageItem(**{k: v for k, v in item.items() if k in LanguageItem.__annotations__})
+            for item in data.get("languages", [])
+        ]
         
         return cls(
             basics=basics,
@@ -151,6 +209,10 @@ class ResumeData:
             projects=projects,
             skills=skills,
             open_source=open_source,
+            certificates=certificates,
+            awards=awards,
+            publications=publications,
+            languages=languages,
             meta=data.get("meta", {})
         )
 

@@ -195,7 +195,7 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(clean_latex(r"Pe\~na"), "Peña")
 
     def test_awesome_cv_5_arg_cventry_and_cvskill(self):
-        """Verify Awesome-CV format with 5-arg \cventry and \cvskill is parsed."""
+        r"""Verify Awesome-CV format with 5-arg \cventry and \cvskill is parsed."""
         raw = r"""
         \documentclass{awesome-cv}
         \name{Alice}{Smith}
@@ -243,7 +243,7 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(data.skills[0].keywords, ["Go", "Rust", "Python", "C++"])
 
     def test_hyperlinked_project_heading_nested_braces(self):
-        """Verify \resumeProjectHeading with nested \textbf{\href{...}{Title}} parses without dropping."""
+        r"""Verify \resumeProjectHeading with nested \textbf{\href{...}{Title}} parses without dropping."""
         raw = r"""
         \documentclass{article}
         \begin{document}
@@ -340,6 +340,139 @@ class TestEdgeCases(unittest.TestCase):
         improved = suggestions[0]["improved"]
         self.assertIn("spearheaded", improved)
         self.assertNotIn("was responsible for", improved)
+
+    def test_deedy_resume_parsing(self):
+        r"""Verify Deedy Resume format (\namesection, \runsubsection, \descript, \location, \tightemize) parses cleanly."""
+        raw = r"""
+        \documentclass[]{deedy-resume-openfont}
+        \begin{document}
+        \namesection{John}{Doe}{ \urlstyle{same}\href{mailto:john@doe.com}{john@doe.com} | 123.456.7890 }
+        \section{Education}
+        \runsubsection{Cornell University}
+        \descript{| B.S. in Computer Science}
+        \location{Aug 2018 – May 2022 | Ithaca, NY}
+        \begin{tightemize}
+        \item Magna Cum Laude, GPA 3.9
+        \end{tightemize}
+
+        \section{Experience}
+        \runsubsection{Google}
+        \descript{| Software Engineer}
+        \location{Jan 2023 – Present | Mountain View, CA}
+        \begin{tightemize}
+        \item Built distributed storage systems in C++.
+        \end{tightemize}
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(data.basics.name, "John Doe")
+        self.assertEqual(len(data.education), 1)
+        self.assertEqual(data.education[0].institution, "Cornell University")
+        self.assertEqual(data.education[0].study_type, "B.S. in Computer Science")
+        self.assertEqual(data.education[0].area, "Ithaca, NY")
+        self.assertEqual(len(data.work), 1)
+        self.assertEqual(data.work[0].name, "Google")
+        self.assertEqual(data.work[0].position, "Software Engineer")
+        self.assertEqual(data.work[0].location, "Mountain View, CA")
+        self.assertEqual(data.work[0].highlights, ["Built distributed storage systems in C++."])
+
+    def test_certifications_awards_pubs_langs_parsing_and_export(self):
+        """Verify parsing and exporting of certifications, honors/awards, publications, and languages."""
+        raw = r"""
+        \documentclass{article}
+        \begin{document}
+        \textbf{\Huge Accomplished Engineer}
+        \section{Certifications}
+        \begin{itemize}
+          \item AWS Certified Solutions Architect - Associate (2024)
+          \item Certified Kubernetes Administrator (CKA) (2023)
+        \end{itemize}
+        \section{Honors \& Awards}
+        \begin{itemize}
+          \item 1st Place, Global Hackathon (2024)
+        \end{itemize}
+        \section{Publications}
+        \begin{itemize}
+          \item "Distributed Consensus in High-Throughput Networks", IEEE INFOCOM, 2024.
+        \end{itemize}
+        \section{Languages}
+        \begin{itemize}
+          \item English (Native), French (Fluent), German (Elementary)
+        \end{itemize}
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(len(data.certificates), 2)
+        self.assertIn("AWS Certified Solutions Architect", data.certificates[0].name)
+        self.assertEqual(len(data.awards), 1)
+        self.assertIn("1st Place", data.awards[0].title)
+        self.assertEqual(len(data.publications), 1)
+        self.assertIn("Distributed Consensus", data.publications[0].name)
+        self.assertEqual(len(data.languages), 3)
+        self.assertEqual(data.languages[0].language, "English")
+
+        exp = ResumeExporter(data)
+        tex = exp.to_latex()
+        self.assertIn(r"\section{Certifications}", tex)
+        self.assertIn(r"\section{Honors \& Awards}", tex)
+        self.assertIn(r"\section{Publications}", tex)
+
+        md = exp.to_markdown()
+        self.assertIn("## Certifications", md)
+        self.assertIn("## Honors & Awards", md)
+        self.assertIn("## Publications", md)
+        self.assertIn("## Languages", md)
+
+    def test_unescaped_percent_metric_protection(self):
+        """Verify novice unescaped percentage metrics like 40% are protected from accidental comment stripping."""
+        raw = r"""
+        \documentclass{article}
+        \begin{document}
+        \section{Experience}
+        \resumeSubheading{Role}{2024}{Company}{Loc}
+        \resumeItemListStart
+          \resumeItem{Reduced latency by 40% across all API endpoints.}
+        \resumeItemListEnd
+        \end{document}
+        """
+        parser = LatexResumeParser(raw)
+        data = parser.parse()
+        self.assertEqual(len(data.work), 1)
+        self.assertIn("40% across all API endpoints.", data.work[0].highlights[0])
+
+    def test_roundtrip_lossless_json_and_latex(self):
+        """Verify ResumeData maintains 100% fidelity across JSON Resume and LaTeX generation/re-parsing."""
+        from resume_forge.core.schema import CertificateItem, AwardItem, PublicationItem, LanguageItem
+        data = ResumeData(
+            basics=Basics(name="Roundtrip Engineer", email="rt@test.com", phone="1234567890", summary="Principal."),
+            work=[WorkItem(name="HyperScale", position="Architect", start_date="2022", end_date="Present", highlights=["Architected systems."])],
+            education=[EducationItem(institution="Stanford", study_type="M.S. CS", start_date="2020", end_date="2022")],
+            skills=[SkillItem(name="Systems", keywords=["Rust", "Go", "C++"])],
+            certificates=[CertificateItem(name="CKA", issuer="CNCF", date="2023")],
+            awards=[AwardItem(title="Hackathon Winner", date="2024")],
+            publications=[PublicationItem(name="High-Throughput Consensus", release_date="2024")],
+            languages=[LanguageItem(language="English", fluency="Native")]
+        )
+
+        # JSON Round-trip
+        json_data = ResumeData.from_json(data.to_json())
+        self.assertEqual(json_data.basics.name, data.basics.name)
+        self.assertEqual(len(json_data.certificates), 1)
+        self.assertEqual(len(json_data.awards), 1)
+        self.assertEqual(len(json_data.publications), 1)
+        self.assertEqual(len(json_data.languages), 1)
+
+        # LaTeX Round-trip
+        tex = ResumeExporter(data).to_latex()
+        reparsed = LatexResumeParser(tex).parse()
+        self.assertEqual(reparsed.basics.name, data.basics.name)
+        self.assertEqual(len(reparsed.work), 1)
+        self.assertEqual(reparsed.work[0].name, "HyperScale")
+        self.assertEqual(len(reparsed.certificates), 1)
+        self.assertEqual(len(reparsed.awards), 1)
+        self.assertEqual(len(reparsed.publications), 1)
 
 
 if __name__ == "__main__":

@@ -83,6 +83,34 @@ class ResumeExporter:
                 lines.append(f"- **{s.name}:** {', '.join(s.keywords)}")
             lines.append("")
 
+        if self.data.certificates:
+            lines.append("## Certifications")
+            for c in self.data.certificates:
+                date_str = f" ({c.date})" if c.date else ""
+                issuer_str = f" - {c.issuer}" if c.issuer else ""
+                lines.append(f"- **{c.name}**{issuer_str}{date_str}")
+            lines.append("")
+
+        if self.data.awards:
+            lines.append("## Honors & Awards")
+            for a in self.data.awards:
+                date_str = f" ({a.date})" if a.date else ""
+                awarder_str = f" - {a.awarder}" if a.awarder else ""
+                lines.append(f"- **{a.title}**{awarder_str}{date_str}")
+            lines.append("")
+
+        if self.data.publications:
+            lines.append("## Publications")
+            for pub in self.data.publications:
+                lines.append(f"- {pub.name}")
+            lines.append("")
+
+        if self.data.languages:
+            lines.append("## Languages")
+            lang_strs = [f"{l.language} ({l.fluency})" if l.fluency else l.language for l in self.data.languages]
+            lines.append(", ".join(lang_strs))
+            lines.append("")
+
         return "\n".join(lines)
 
     def to_latex(self, template: str = "cern") -> str:
@@ -265,6 +293,40 @@ class ResumeExporter:
             for s in self.data.skills:
                 tex.append(rf"     \textbf{{{esc(s.name)}}}{{: {esc(', '.join(s.keywords))}}} \\")
             tex.append(r"    }}")
+            tex.append(r"\end{itemize}")
+            tex.append("")
+
+        # Certifications
+        if self.data.certificates:
+            tex.append(r"%-----------CERTIFICATIONS-----------")
+            tex.append(r"\section{Certifications}")
+            tex.append(r"\begin{itemize}[leftmargin=0.15in, label={}]")
+            for c in self.data.certificates:
+                date_str = f" ({c.date})" if c.date else ""
+                issuer_str = f" -- {c.issuer}" if c.issuer else ""
+                tex.append(rf"    \item \small{{\textbf{{{esc(c.name)}}}{esc(issuer_str)}{esc(date_str)}}}")
+            tex.append(r"\end{itemize}")
+            tex.append("")
+
+        # Honors & Awards
+        if self.data.awards:
+            tex.append(r"%-----------HONORS & AWARDS-----------")
+            tex.append(r"\section{Honors \& Awards}")
+            tex.append(r"\begin{itemize}[leftmargin=0.15in, label={}]")
+            for a in self.data.awards:
+                date_str = f" ({a.date})" if a.date else ""
+                awarder_str = f" -- {a.awarder}" if a.awarder else ""
+                tex.append(rf"    \item \small{{\textbf{{{esc(a.title)}}}{esc(awarder_str)}{esc(date_str)}}}")
+            tex.append(r"\end{itemize}")
+            tex.append("")
+
+        # Publications
+        if self.data.publications:
+            tex.append(r"%-----------PUBLICATIONS-----------")
+            tex.append(r"\section{Publications}")
+            tex.append(r"\begin{itemize}[leftmargin=0.15in, label={}]")
+            for pub in self.data.publications:
+                tex.append(rf"    \item \small{{{esc(pub.name)}}}")
             tex.append(r"\end{itemize}")
             tex.append("")
 
@@ -522,6 +584,58 @@ class ResumeExporter:
       <span class="skill-name">{html_escape(s.name)}:</span> {html_escape(', '.join(s.keywords))}
     </div>"""
             html += "\n  </section>"
+
+        # Certifications
+        if self.data.certificates:
+            html += """
+  <section>
+    <div class="section-title">Certifications</div>"""
+            for c in self.data.certificates:
+                date_str = f" ({c.date})" if c.date else ""
+                issuer_str = f" - {c.issuer}" if c.issuer else ""
+                html += f"""
+    <div class="skill-line">
+      <span class="skill-name">{html_escape(c.name)}</span>{html_escape(issuer_str)}{date_str}
+    </div>"""
+            html += "\n  </section>"
+
+        # Honors & Awards
+        if self.data.awards:
+            html += """
+  <section>
+    <div class="section-title">Honors & Awards</div>"""
+            for a in self.data.awards:
+                date_str = f" ({a.date})" if a.date else ""
+                awarder_str = f" - {a.awarder}" if a.awarder else ""
+                html += f"""
+    <div class="skill-line">
+      <span class="skill-name">{html_escape(a.title)}</span>{html_escape(awarder_str)}{date_str}
+    </div>"""
+            html += "\n  </section>"
+
+        # Publications
+        if self.data.publications:
+            html += """
+  <section>
+    <div class="section-title">Publications</div>"""
+            for pub in self.data.publications:
+                html += f"""
+    <div class="skill-line">
+      {html_escape(pub.name)}
+    </div>"""
+            html += "\n  </section>"
+
+        # Languages
+        if self.data.languages:
+            html += """
+  <section>
+    <div class="section-title">Languages</div>
+    <div class="skill-line">"""
+            lang_strs = [f"{html_escape(l.language)} ({html_escape(l.fluency)})" if l.fluency else html_escape(l.language) for l in self.data.languages]
+            html += f"      {', '.join(lang_strs)}"
+            html += """
+    </div>
+  </section>"""
 
         html += """
 </div>
