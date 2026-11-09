@@ -261,9 +261,23 @@ def cmd_tailor(args):
 
 def cmd_hunt(args):
     """Directly queries official public ATS APIs for verified live openings and pairs with resumes."""
-    print(f"Hunting verified live requisitions (Company: {args.company}, Role: '{args.role}', Location: '{args.location}')...")
+    target_info = []
+    if args.company:
+        target_info.append(f"Company: {args.company}")
+    if args.provider and args.provider != "all":
+        target_info.append(f"Provider: {args.provider}")
+    if args.role:
+        target_info.append(f"Role: '{args.role}'")
+    if args.location:
+        target_info.append(f"Location: '{args.location}'")
+    if args.grad_year:
+        target_info.append(f"Cohort: {args.grad_year}")
+
+    filter_desc = f" ({', '.join(target_info)})" if target_info else ""
+    print(f"Hunting verified live requisitions via ATS APIs{filter_desc}...")
     hunter = JobHunter(
         company=args.company,
+        provider=args.provider,
         role=args.role,
         location=args.location,
         grad_year=args.grad_year,
@@ -371,11 +385,12 @@ def main():
     p_tailor.set_defaults(func=cmd_tailor)
 
     # hunt
-    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Amazon, SmartRecruiters, Greenhouse, Lever) for live jobs")
-    p_hunt.add_argument("-c", "--company", default="all", help="Target company or ATS (all, amazon, cern, greenhouse, lever, canonical, figma, stripe, databricks, palantir)")
-    p_hunt.add_argument("-r", "--role", default="software", help="Target role/title keywords (e.g. 'software intern', 'sde', 'engineer')")
-    p_hunt.add_argument("-l", "--location", default="India,Remote", help="Target location (e.g. 'India,Remote', 'Switzerland', 'all')")
-    p_hunt.add_argument("-g", "--grad-year", type=int, default=2027, help="Target graduation cohort year (default: 2027)")
+    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Greenhouse, Lever, SmartRecruiters, Amazon) for live jobs")
+    p_hunt.add_argument("-p", "--provider", choices=["all", "greenhouse", "lever", "smartrecruiters", "amazon"], default="all", help="ATS platform provider (default: all)")
+    p_hunt.add_argument("-c", "--company", default="", help="Target company or board identifier (e.g. 'canonical', 'figma', 'stripe', 'amazon', 'cern')")
+    p_hunt.add_argument("-r", "--role", default="", help="Role/title keyword filter (e.g. 'software engineer', 'intern', 'backend')")
+    p_hunt.add_argument("-l", "--location", default="", help="Target location / country filter (e.g. 'Remote', 'US', 'Germany', 'India')")
+    p_hunt.add_argument("-g", "--grad-year", type=int, default=None, help="Target graduation cohort year filter (e.g. 2026, 2027)")
     p_hunt.add_argument("-n", "--limit", type=int, default=5, help="Maximum postings per source (default: 5)")
     p_hunt.add_argument("--compile", action="store_true", help="Auto-tailor and compile paired single-page PDFs via ResumeCompiler")
     p_hunt.add_argument("-b", "--base-resume", help="Base resume path to tailor from (.tex or .json)")

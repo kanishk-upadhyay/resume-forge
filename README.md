@@ -89,28 +89,28 @@ Estimated Content   : ~49 lines
 Opens `http://localhost:8080` in your browser. Edit visually or edit LaTeX raw code with real-time paper rendering and 1-click PDF download!
 
 ### 6. Hunt Verified Live Jobs & Auto-Compile Resumes (Direct ATS APIs)
-Query official public JSON endpoints of Amazon Jobs, SmartRecruiters (CERN), Greenhouse (Canonical, Figma, Stripe, Databricks), and Lever (Palantir) directly with zero web scrapers or dead links:
+Query official public JSON endpoints of major ATS platforms (Greenhouse, Lever, SmartRecruiters, Amazon Jobs) directly with zero web scrapers or dead links. Every parameter is completely configurable via attached flags:
 ```bash
-# Hunt software internships in India/Remote and auto-compile single-page PDFs
-./bin/resume-forge hunt --role "software" --location "India,Remote" --compile
+# Search live postings across global boards and auto-compile single-page PDFs:
+./bin/resume-forge hunt --role "software engineer" --location "Remote" --compile
 
-# Target specific company/ATS with modular flags:
+# Target specific company or board with modular flags:
+./bin/resume-forge hunt \
+  --provider greenhouse \
+  --company stripe \
+  --role "backend" \
+  --location "Remote" \
+  --compile
+
 ./bin/resume-forge hunt \
   --company amazon \
   --role "Software Development Engineer" \
-  --location "India" \
+  --location "US" \
   --limit 5 \
   --compile
 
-./bin/resume-forge hunt \
-  --company cern \
-  --role "software" \
-  --location "all" \
-  --grad-year 2027 \
-  --compile
-
 # Export verified listings to structured JSON for automation:
-./bin/resume-forge hunt --company greenhouse --json
+./bin/resume-forge hunt --provider greenhouse --json
 ```
 
 
@@ -125,8 +125,8 @@ Query official public JSON endpoints of Amazon Jobs, SmartRecruiters (CERN), Gre
 │  LEFT PANE: Editor & Engine   │  RIGHT PANE: Live A4/Letter Preview             │
 │                               │                                                 │
 │  [Visual Form] [Raw LaTeX]    │  ┌───────────────────────────────────────────┐  │
-│  [Design]      [ATS Scanner]  │  │ KANISHK UPADHYAY                          │  │
-│                               │  │ +91 7772034062 | kanishk@... | Bhopal     │  │
+│  [Design]      [ATS Scanner]  │  │ ALEX DOE                                  │  │
+│                               │  │ +1 (555) 019-2834 | alex@example.com      │  │
 │  • Contact & PII              │  │ ───────────────────────────────────────── │  │
 │  • Experience & Bullets       │  │ EDUCATION                                 │  │
 │  • Projects & Tech Stacks     │  │ EXPERIENCE                                │  │
@@ -155,14 +155,14 @@ resume_data = parser.parse()
 
 # 2. Inspect ATS & page budget
 analyzer = ATSAnalyzer(resume_data)
-report = analyzer.analyze(job_description="CERN Software Engineer...")
+report = analyzer.analyze(job_description="Software Engineer - Distributed Systems, Go, Linux...")
 print(f"ATS Score: {report['score']} | Page Budget: {report['page_budget_percent']}%")
 
 # 3. Compile to single-page PDF
 compiler = ResumeCompiler()
 compiler.compile_resume(
     data=resume_data,
-    output_pdf_path="output/kanishk_resume.pdf",
+    output_pdf_path="output/tailored_resume.pdf",
     font_size_pt=9.5,
     margin_in=0.35
 )
