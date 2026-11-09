@@ -98,3 +98,38 @@ report = analyzer.analyze(job_description="...")
 compiler = ResumeCompiler()
 compiler.compile_resume(data, "output.pdf", font_size_pt=10.0, margin_in=0.4, auto_fit=True)
 ```
+
+---
+
+## Agent Protocol & Best Practices (Synthesized ATS Standards)
+
+When generating or auditing resumes for job applications, adhere to these synthesized standards:
+
+### 1. The Google XYZ Bullet Formula
+Every experience and project bullet MUST follow:
+$$\text{Accomplished [X], as measured by [Y], by doing [Z]}$$
+- **X (Outcome):** Specific technical achievement or problem resolved.
+- **Y (Quantifiable Metric):** Latency reduction, throughput, user count, test coverage, PR merge count, memory footprint.
+- **Z (Action & Tech Stack):** Exact tools, algorithms, protocols, or architectural patterns used.
+
+### 2. Anti-AI Cliché Filter
+Never use LLM boilerplate buzzwords:
+`spearheaded`, `synergized`, `leveraged`, `pioneered`, `passionate`, `results-driven`, `hardworking`, `detail-oriented`, `team-player`, `self-starter`, `dynamic`, `thought-leader`, `utilized`, `assisted with`, `helped to`, `responsible for`.
+Instead, use concrete engineering action verbs:
+`Architected`, `Engineered`, `Refactored`, `Benchmarked`, `Deployed`, `Centralized`, `Diagnosed`, `Standardized`, `Automated`, `Patched`.
+
+### 3. Canonical ATS Section Hierarchy
+For undergraduate/new-grad roles (e.g. 2026/2027 graduates):
+1. **Header:** Name, Email, Phone, GitHub, LinkedIn, Portfolio.
+2. **Education:** Degree, Institution, Expected Graduation Date (omit GPA if below target cutoffs).
+3. **Experience / Internships:** Reverse chronological, high-density XYZ bullets.
+4. **Open Source Contributions:** Upstream PRs, merged MRs, issues resolved with issue numbers.
+5. **Projects:** Deep technical systems and web architectures with live/repo links.
+6. **Technical Skills:** Categorized (Languages, Frameworks, Developer Tools, Core Concepts).
+
+### 4. Direct Application Invariant
+Whenever presenting job opportunities:
+- Present **only direct, verified live application URLs**.
+- Pair each listing directly with the compiled single-page PDF and source `.tex` artifact.
+- Perform all reasoning, JD keyword matching, and ATS score verification internally before output.
+
