@@ -16,7 +16,7 @@ class TestResumeSchema(unittest.TestCase):
                 label="Fullstack Systems Engineer",
                 email="kanishkupadhyay22@gmail.com",
                 phone="+91 7772034062",
-                url="https://kanishk.pages.dev/treasures",
+                url="https://kanishk-upadhyay.github.io/",
                 summary="Passionate engineer building high-impact systems.",
                 location=Location(city="Bhopal", region="MP", country_code="IN"),
                 profiles=[

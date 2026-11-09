@@ -122,7 +122,7 @@ gh repo fork <owner>/<repo> --clone --remote
 gh repo view <owner>/<repo>
 
 # Edit repository settings (e.g. description, homepage):
-gh repo edit --description "In-house resume parser and studio" --homepage "https://kanishk.pages.dev"
+gh repo edit --description "In-house resume parser and studio" --homepage "https://kanishk-upadhyay.github.io"
 ```
 
 ---
