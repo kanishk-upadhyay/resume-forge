@@ -5,19 +5,19 @@ from typing import Dict, List, Any
 from .schema import ResumeData
 
 STRONG_ACTION_VERBS = {
-    "accelerated", "achieved", "analyzed", "architected", "authored", "automated",
-    "boosted", "built", "centralized", "championed", "co-authored", "co-founded",
-    "collaborated", "conducted", "constructed", "created", "cut", "debugged",
-    "decreased", "delivered", "deployed", "designed", "developed", "diagnosed",
-    "directed", "drove", "earned", "engineered", "enhanced", "established",
+    "accelerated", "achieved", "analyzed", "architected", "audited", "authored", "automated",
+    "benchmarked", "boosted", "built", "centralized", "championed", "co-authored", "co-founded",
+    "collaborated", "compiled", "conducted", "configured", "constructed", "containerized", "created",
+    "cut", "debugged", "decreased", "decoupled", "delivered", "deployed", "designed", "developed",
+    "diagnosed", "directed", "drove", "earned", "engineered", "enhanced", "established",
     "executed", "formulated", "founded", "generated", "guided", "headed",
-    "implemented", "improved", "increased", "initiated", "installed", "integrated",
-    "launched", "led", "leveraged", "maintained", "managed", "mentored",
+    "implemented", "improved", "increased", "indexed", "initiated", "installed", "instrumented",
+    "integrated", "isolated", "launched", "led", "maintained", "managed", "mentored",
     "migrated", "modeled", "modernized", "monitored", "negotiated", "optimized",
-    "orchestrated", "overhauled", "patched", "pioneered", "published", "quantified",
-    "re-architected", "reduced", "refactored", "resolved", "restructured", "revamped",
-    "saved", "scaled", "secured", "spearheaded", "standardized", "streamlined",
-    "strengthened", "tested", "trained"
+    "orchestrated", "overhauled", "parallelized", "partitioned", "patched", "profiled", "provisioned",
+    "published", "quantified", "re-architected", "reduced", "refactored", "reproduced", "resolved",
+    "restructured", "revamped", "saved", "scaled", "secured", "sharded", "standardized",
+    "streamlined", "strengthened", "synthesized", "tested", "trained", "triaged", "validated", "virtualized"
 }
 
 SHORT_TECH_TERMS = {
@@ -113,7 +113,19 @@ class ATSAnalyzer:
         metric_count = 0
 
         metric_pattern = re.compile(
-            r'(?:\b\d+(?:\.\d+)?%(?!\w)|\$\d+(?:\.\d+)?[kKmMbB]?|\b\d+(?:\.\d+)?\s*(?:x|X)\b|\b\d+(?:\.\d+)?(?:,\d+)*\s*[kKmMbB]?(?:\+)?\s*(?:users|requests|qps|rps|ms|seconds|minutes|hours|days|lines|stars|commits|prs|tests|benchmarks|queries|downloads|clients|subscribers)\b)',
+            r'(?:'
+            r'\b\d+(?:\.\d+)?%(?!\w)'                                       # Percentages: 40%, 99.99%
+            r'|[\$€£₹]\s*\d+(?:\.\d+)?[kKmMbB]?'                           # Currency: $100k, €5M
+            r'|\b\d+(?:\.\d+)?\s*(?:x|X|-fold)\b'                           # Multipliers: 2.5x, 10-fold
+            r'|\bO\([1nN\^log\s\+\*]+\)'                                    # Big-O complexity: O(1), O(N), O(log N)
+            r'|\b(?:zero|0)\s+(?:crashes|leaks|downtime|regressions|defects|errors|vulnerabilities|outages)\b'  # Zero-defect
+            r'|\b\d+(?:\.\d+)?(?:,\d+)*\s*[kKmMbB]?\+?\s*(?:'               # Scaled numerical metrics
+            r'users|requests|qps|rps|tps|req/s|ops/s|ms|ns|µs|us|seconds|secs?|'
+            r'minutes|mins?|hours|hrs?|days|lines|stars|commits|prs|mrs|issues|'
+            r'endpoints|daemons|services|nodes|clusters|containers|microservices|'
+            r'tables|records|events|queries|downloads|clients|subscribers|tests|'
+            r'benchmarks|cores|threads|vcpus|bytes|kb|mb|gb|tb|pb'
+            r')\b)',
             re.IGNORECASE
         )
 

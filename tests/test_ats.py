@@ -81,5 +81,26 @@ class TestATSAnalyzer(unittest.TestCase):
         self.assertNotIn("for", matched)
 
 
+    def test_advanced_metrics_and_verbs(self):
+        adv_data = ResumeData(
+            basics=Basics(name="Developer", email="dev@example.com", phone="1234567890"),
+            work=[
+                WorkItem(
+                    name="Infra Corp",
+                    position="Systems Engineer",
+                    highlights=[
+                        "Benchmarked IPC latency down to O(1) complexity across 16 cores.",
+                        "Refactored microservices to guarantee zero downtime and 0 memory leaks across 50+ daemons.",
+                        "Merged 30+ MRs to streamline CI pipelines achieving a 3x speedup."
+                    ]
+                )
+            ]
+        )
+        report = ATSAnalyzer(adv_data).analyze()
+        self.assertTrue(any("quantifiable impact metrics" in s for s in report["strengths"]))
+        self.assertTrue(any("action verbs" in s for s in report["strengths"]))
+        self.assertEqual(report["cliches_detected"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
