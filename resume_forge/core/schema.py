@@ -280,6 +280,10 @@ class ResumeData:
                     issuer=_str(item.get("issuer", "")),
                     url=_str(item.get("url", ""))
                 ))
+            elif isinstance(item, str):
+                certificates.append(CertificateItem(name=item))
+            elif isinstance(item, CertificateItem):
+                certificates.append(item)
 
         awards = []
         for item in (data.get("awards") or []):
@@ -290,6 +294,10 @@ class ResumeData:
                     awarder=_str(item.get("awarder") or item.get("organization", "")),
                     summary=_str(item.get("summary", ""))
                 ))
+            elif isinstance(item, str):
+                awards.append(AwardItem(title=item))
+            elif isinstance(item, AwardItem):
+                awards.append(item)
 
         publications = []
         for item in (data.get("publications") or []):
@@ -301,6 +309,10 @@ class ResumeData:
                     url=_str(item.get("url", "")),
                     summary=_str(item.get("summary", ""))
                 ))
+            elif isinstance(item, str):
+                publications.append(PublicationItem(name=item))
+            elif isinstance(item, PublicationItem):
+                publications.append(item)
 
         languages = []
         for item in (data.get("languages") or []):
@@ -309,6 +321,10 @@ class ResumeData:
                     language=_str(item.get("language", "")),
                     fluency=_str(item.get("fluency", ""))
                 ))
+            elif isinstance(item, str):
+                languages.append(LanguageItem(language=item))
+            elif isinstance(item, LanguageItem):
+                languages.append(item)
 
         return cls(
             basics=basics,

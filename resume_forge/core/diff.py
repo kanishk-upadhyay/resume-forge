@@ -34,13 +34,40 @@ class ProjectDiff:
 
 
 @dataclass
+class EducationDiff:
+    institution: str
+    status: str  # 'added', 'removed', 'modified'
+    old_degree: str = ""
+    new_degree: str = ""
+    old_dates: str = ""
+    new_dates: str = ""
+
+
+@dataclass
+class OpenSourceDiff:
+    project: str
+    status: str  # 'added', 'removed', 'modified'
+    bullets: List[BulletDiff] = field(default_factory=list)
+
+
+@dataclass
 class ResumeDiffResult:
     """Detailed structural diff between two resumes."""
     basics_changed: Dict[str, Dict[str, str]] = field(default_factory=dict)
     work: List[WorkDiff] = field(default_factory=list)
+    education: List[EducationDiff] = field(default_factory=list)
     projects: List[ProjectDiff] = field(default_factory=list)
+    open_source: List[OpenSourceDiff] = field(default_factory=list)
     skills_added: Dict[str, List[str]] = field(default_factory=dict)
     skills_removed: Dict[str, List[str]] = field(default_factory=dict)
+    certificates_added: List[str] = field(default_factory=list)
+    certificates_removed: List[str] = field(default_factory=list)
+    awards_added: List[str] = field(default_factory=list)
+    awards_removed: List[str] = field(default_factory=list)
+    publications_added: List[str] = field(default_factory=list)
+    publications_removed: List[str] = field(default_factory=list)
+    languages_added: List[str] = field(default_factory=list)
+    languages_removed: List[str] = field(default_factory=list)
     score_before: int = 0
     score_after: int = 0
     score_delta: int = 0
@@ -65,6 +92,17 @@ class ResumeDiffResult:
                 }
                 for w in self.work
             ],
+            "education": [
+                {
+                    "institution": e.institution,
+                    "status": e.status,
+                    "old_degree": e.old_study_type,
+                    "new_degree": e.new_study_type,
+                    "old_dates": e.old_dates,
+                    "new_dates": e.new_dates
+                }
+                for e in self.education
+            ],
             "projects": [
                 {
                     "name": p.name,
@@ -78,8 +116,27 @@ class ResumeDiffResult:
                 }
                 for p in self.projects
             ],
+            "open_source": [
+                {
+                    "project": o.project,
+                    "status": o.status,
+                    "bullets": [
+                        {"status": b.status, "old": b.old_text, "new": b.new_text}
+                        for b in o.bullets
+                    ]
+                }
+                for o in self.open_source
+            ],
             "skills_added": self.skills_added,
             "skills_removed": self.skills_removed,
+            "certificates_added": self.certificates_added,
+            "certificates_removed": self.certificates_removed,
+            "awards_added": self.awards_added,
+            "awards_removed": self.awards_removed,
+            "publications_added": self.publications_added,
+            "publications_removed": self.publications_removed,
+            "languages_added": self.languages_added,
+            "languages_removed": self.languages_removed,
             "ats": {
                 "score_before": self.score_before,
                 "score_after": self.score_after,
@@ -140,7 +197,18 @@ class ResumeDiffResult:
                             lines.append(f"      {C_RED}- {b.old_text}{C_RESET}")
                             lines.append(f"      {C_GREEN}+ {b.new_text}{C_RESET}")
 
-        # 4. Projects
+        # 4. Education
+        if self.education:
+            lines.append(f"\n{C_BOLD}[Education]{C_RESET}")
+            for e in self.education:
+                if e.status == "added":
+                    lines.append(f"  {C_GREEN}+ [Added Degree] {e.institution} - {e.new_degree} ({e.new_dates}){C_RESET}")
+                elif e.status == "removed":
+                    lines.append(f"  {C_RED}- [Removed Degree] {e.institution} - {e.old_degree}{C_RESET}")
+                elif e.status == "modified":
+                    lines.append(f"  {C_YELLOW}~ {e.institution}: {e.old_degree} ➔ {e.new_degree}{C_RESET}")
+
+        # 5. Projects
         if self.projects:
             lines.append(f"\n{C_BOLD}[Projects]{C_RESET}")
             for p in self.projects:
@@ -159,13 +227,61 @@ class ResumeDiffResult:
                             lines.append(f"      {C_RED}- {b.old_text}{C_RESET}")
                             lines.append(f"      {C_GREEN}+ {b.new_text}{C_RESET}")
 
-        # 5. Skills
+        # 6. Open Source
+        if self.open_source:
+            lines.append(f"\n{C_BOLD}[Open-Source Contributions]{C_RESET}")
+            for o in self.open_source:
+                if o.status == "added":
+                    lines.append(f"  {C_GREEN}+ [Added Contribution] {o.project}{C_RESET}")
+                elif o.status == "removed":
+                    lines.append(f"  {C_RED}- [Removed Contribution] {o.project}{C_RESET}")
+                elif o.status == "modified":
+                    lines.append(f"  {C_YELLOW}~ {o.project}{C_RESET}")
+                    for b in o.bullets:
+                        if b.status == "added":
+                            lines.append(f"      {C_GREEN}+ {b.new_text}{C_RESET}")
+                        elif b.status == "removed":
+                            lines.append(f"      {C_RED}- {b.old_text}{C_RESET}")
+                        elif b.status == "modified":
+                            lines.append(f"      {C_RED}- {b.old_text}{C_RESET}")
+                            lines.append(f"      {C_GREEN}+ {b.new_text}{C_RESET}")
+
+        # 7. Skills
         if self.skills_added or self.skills_removed:
             lines.append(f"\n{C_BOLD}[Skills]{C_RESET}")
             for cat, kws in self.skills_added.items():
                 lines.append(f"  {C_GREEN}+ {cat}: {', '.join(kws)}{C_RESET}")
             for cat, kws in self.skills_removed.items():
                 lines.append(f"  {C_RED}- {cat}: {', '.join(kws)}{C_RESET}")
+
+        # 8. Certifications, Awards, Publications, Languages
+        if self.certificates_added or self.certificates_removed:
+            lines.append(f"\n{C_BOLD}[Certifications]{C_RESET}")
+            for c in self.certificates_added:
+                lines.append(f"  {C_GREEN}+ {c}{C_RESET}")
+            for c in self.certificates_removed:
+                lines.append(f"  {C_RED}- {c}{C_RESET}")
+
+        if self.awards_added or self.awards_removed:
+            lines.append(f"\n{C_BOLD}[Awards & Honors]{C_RESET}")
+            for a in self.awards_added:
+                lines.append(f"  {C_GREEN}+ {a}{C_RESET}")
+            for a in self.awards_removed:
+                lines.append(f"  {C_RED}- {a}{C_RESET}")
+
+        if self.publications_added or self.publications_removed:
+            lines.append(f"\n{C_BOLD}[Publications]{C_RESET}")
+            for p in self.publications_added:
+                lines.append(f"  {C_GREEN}+ {p}{C_RESET}")
+            for p in self.publications_removed:
+                lines.append(f"  {C_RED}- {p}{C_RESET}")
+
+        if self.languages_added or self.languages_removed:
+            lines.append(f"\n{C_BOLD}[Languages]{C_RESET}")
+            for l in self.languages_added:
+                lines.append(f"  {C_GREEN}+ {l}{C_RESET}")
+            for l in self.languages_removed:
+                lines.append(f"  {C_RED}- {l}{C_RESET}")
 
         lines.append(f"{C_BOLD}======================================================================{C_RESET}\n")
         return "\n".join(lines)
@@ -217,7 +333,41 @@ class ResumeDiffEngine:
                     bullets=b_diffs
                 ))
 
-        # 3. Compare Projects
+        # 3. Compare Education
+        old_edu_map = {e.institution.lower().strip(): e for e in old_data.education}
+        new_edu_map = {e.institution.lower().strip(): e for e in new_data.education}
+
+        for key, e_old in old_edu_map.items():
+            if key not in new_edu_map:
+                result.education.append(EducationDiff(
+                    institution=e_old.institution,
+                    status="removed",
+                    old_degree=e_old.study_type
+                ))
+            else:
+                e_new = new_edu_map[key]
+                deg_changed = (e_old.study_type != e_new.study_type)
+                dates_changed = (f"{e_old.start_date}-{e_old.end_date}" != f"{e_new.start_date}-{e_new.end_date}")
+                if deg_changed or dates_changed:
+                    result.education.append(EducationDiff(
+                        institution=e_new.institution,
+                        status="modified",
+                        old_degree=e_old.study_type,
+                        new_degree=e_new.study_type,
+                        old_dates=f"{e_old.start_date} - {e_old.end_date}",
+                        new_dates=f"{e_new.start_date} - {e_new.end_date}"
+                    ))
+
+        for key, e_new in new_edu_map.items():
+            if key not in old_edu_map:
+                result.education.append(EducationDiff(
+                    institution=e_new.institution,
+                    status="added",
+                    new_degree=e_new.study_type,
+                    new_dates=f"{e_new.start_date} - {e_new.end_date}"
+                ))
+
+        # 4. Compare Projects
         old_proj_map = {p.name.lower().strip(): p for p in old_data.projects}
         new_proj_map = {p.name.lower().strip(): p for p in new_data.projects}
 
@@ -246,7 +396,33 @@ class ResumeDiffEngine:
                     bullets=b_diffs
                 ))
 
-        # 4. Compare Skills
+        # 5. Compare Open Source
+        old_os_map = {o.project.lower().strip(): o for o in old_data.open_source}
+        new_os_map = {o.project.lower().strip(): o for o in new_data.open_source}
+
+        for key, o_old in old_os_map.items():
+            if key not in new_os_map:
+                result.open_source.append(OpenSourceDiff(project=o_old.project, status="removed"))
+            else:
+                o_new = new_os_map[key]
+                bullet_diffs = cls._diff_bullets(o_old.highlights, o_new.highlights)
+                if bullet_diffs:
+                    result.open_source.append(OpenSourceDiff(
+                        project=o_new.project,
+                        status="modified",
+                        bullets=bullet_diffs
+                    ))
+
+        for key, o_new in new_os_map.items():
+            if key not in old_os_map:
+                b_diffs = [BulletDiff(status="added", new_text=b) for b in o_new.highlights]
+                result.open_source.append(OpenSourceDiff(
+                    project=o_new.project,
+                    status="added",
+                    bullets=b_diffs
+                ))
+
+        # 6. Compare Skills
         old_skills_map = {s.name.lower().strip(): set(s.keywords) for s in old_data.skills}
         new_skills_map = {s.name.lower().strip(): set(s.keywords) for s in new_data.skills}
 
@@ -260,6 +436,58 @@ class ResumeDiffEngine:
                 result.skills_added[cat.title()] = added
             if removed:
                 result.skills_removed[cat.title()] = removed
+
+        # 7. Compare Certifications
+        def _cert_name(c):
+            if hasattr(c, "name"):
+                return c.name
+            if isinstance(c, dict):
+                return c.get("name", "")
+            return str(c) if c else ""
+
+        def _award_title(a):
+            if hasattr(a, "title"):
+                return a.title
+            if isinstance(a, dict):
+                return a.get("title", "")
+            return str(a) if a else ""
+
+        def _pub_name(p):
+            if hasattr(p, "name"):
+                return p.name
+            if isinstance(p, dict):
+                return p.get("name", "")
+            return str(p) if p else ""
+
+        def _lang_name(l):
+            if hasattr(l, "language"):
+                return l.language
+            if isinstance(l, dict):
+                return l.get("language", "")
+            return str(l) if l else ""
+
+        c1 = set(_cert_name(c) for c in old_data.certificates if _cert_name(c))
+        c2 = set(_cert_name(c) for c in new_data.certificates if _cert_name(c))
+        result.certificates_added = sorted(list(c2 - c1))
+        result.certificates_removed = sorted(list(c1 - c2))
+
+        # 8. Compare Awards
+        a1 = set(_award_title(a) for a in old_data.awards if _award_title(a))
+        a2 = set(_award_title(a) for a in new_data.awards if _award_title(a))
+        result.awards_added = sorted(list(a2 - a1))
+        result.awards_removed = sorted(list(a1 - a2))
+
+        # 9. Compare Publications
+        pub1 = set(_pub_name(p) for p in old_data.publications if _pub_name(p))
+        pub2 = set(_pub_name(p) for p in new_data.publications if _pub_name(p))
+        result.publications_added = sorted(list(pub2 - pub1))
+        result.publications_removed = sorted(list(pub1 - pub2))
+
+        # 10. Compare Languages
+        l1 = set(_lang_name(l) for l in old_data.languages if _lang_name(l))
+        l2 = set(_lang_name(l) for l in new_data.languages if _lang_name(l))
+        result.languages_added = sorted(list(l2 - l1))
+        result.languages_removed = sorted(list(l1 - l2))
 
         # 5. Calculate ATS scores
         ats1 = ATSAnalyzer(old_data).analyze()

@@ -1,9 +1,11 @@
 """Cover Letter data models, serialization, and AI/rule-based synthesis."""
 
 import json
+import re
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union
 from .schema import ResumeData, Basics
 
 
@@ -114,25 +116,47 @@ class CoverLetterData:
                 top_skills.extend(s.keywords[:3])
         skills_str = ", ".join(top_skills[:5]) if top_skills else "distributed systems and software development"
 
-        # Extract top highlight from work
+        def _clean_highlight(text: str) -> str:
+            if not text:
+                return ""
+            # Strip LaTeX commands like \textbf{...} -> ...
+            clean = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt|underline)\s*\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', text)
+            clean = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', clean)
+            clean = clean.replace(r'\%', '%').replace(r'\&', '&').replace(r'\$', '$').replace(r'\_', '_')
+            clean = re.sub(r'[{}]', '', clean).strip()
+            return clean
+
+        # Extract top highlight from work safely
         work_story = ""
         if resume.work:
             w = resume.work[0]
-            if w.highlights:
-                work_story = f"Most recently at {w.name} as a {w.position or 'Engineer'}, I {w.highlights[0][0].lower() + w.highlights[0][1:]}"
-            else:
+            valid_bullets = [b.strip() for b in w.highlights if b and b.strip()]
+            if valid_bullets:
+                clean_b = _clean_highlight(valid_bullets[0])
+                if clean_b:
+                    action_verb = clean_b[0].lower() + clean_b[1:]
+                    work_story = f"Most recently at {w.name} as a {w.position or 'Engineer'}, I {action_verb}"
+            if not work_story:
                 work_story = f"In my recent role at {w.name} as a {w.position or 'Engineer'}, I developed production-grade systems with high reliability."
 
-        # Extract top project or open-source contribution
+        # Extract top project or open-source contribution safely
         project_story = ""
         if resume.projects:
             p = resume.projects[0]
-            if p.highlights:
-                project_story = f"Additionally, I architected {p.name}, where I {p.highlights[0][0].lower() + p.highlights[0][1:]}"
+            valid_bullets = [b.strip() for b in p.highlights if b and b.strip()]
+            if valid_bullets:
+                clean_b = _clean_highlight(valid_bullets[0])
+                if clean_b:
+                    action_verb = clean_b[0].lower() + clean_b[1:]
+                    project_story = f"Additionally, I architected {p.name}, where I {action_verb}"
         elif resume.open_source:
             o = resume.open_source[0]
-            if o.highlights:
-                project_story = f"Furthermore, in my open-source work on {o.project}, I {o.highlights[0][0].lower() + o.highlights[0][1:]}"
+            valid_bullets = [b.strip() for b in o.highlights if b and b.strip()]
+            if valid_bullets:
+                clean_b = _clean_highlight(valid_bullets[0])
+                if clean_b:
+                    action_verb = clean_b[0].lower() + clean_b[1:]
+                    project_story = f"Furthermore, in my open-source work on {o.project}, I {action_verb}"
 
         opening = (
             f"I am writing to express my enthusiastic interest in the {role} position at {company}. "
@@ -158,12 +182,94 @@ class CoverLetterData:
             f"Thank you for your time and consideration."
         )
 
+        import copy
+        sender = copy.deepcopy(resume.basics) if resume.basics else Basics()
+        if not sender.name:
+            sender.name = "Candidate"
+
         return cls(
-            sender=resume.basics,
+            sender=sender,
             recipient=recipient,
             job_title=role,
             opening=opening,
             body_paragraphs=body_paragraphs,
             closing=closing,
             sign_off="Sincerely,"
+        )
+
+
+class LatexCoverLetterParser:
+    """Parses raw LaTeX cover letter documents into CoverLetterData."""
+
+    def __init__(self, latex_content: Union[str, Path]):
+        if hasattr(latex_content, "read_text"):
+            latex_content = latex_content.read_text(encoding="utf-8")
+        elif isinstance(latex_content, bytes):
+            latex_content = latex_content.decode("utf-8")
+        elif not isinstance(latex_content, str):
+            latex_content = str(latex_content)
+        self.raw = latex_content or ""
+
+    def parse(self) -> CoverLetterData:
+        # Strip comments
+        cleaned = re.sub(r'(?<!\\)%.*$', '', self.raw, flags=re.MULTILINE)
+
+        # 1. Name
+        name_match = re.search(r'\{\s*\\(?:LARGE|Large|Huge|huge)\s*(?:\\textbf\{)?([^}]+)\}?', cleaned)
+        if not name_match:
+            name_match = re.search(r'\\textbf\{([A-Z][a-zA-Z\s]+)\}', cleaned)
+        name = name_match.group(1).strip() if name_match else "Candidate"
+        name = re.sub(r'[{}\\]', '', name).strip()
+
+        # 2. Contact details
+        email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', cleaned)
+        email = email_match.group(0) if email_match else ""
+
+        phone_match = re.search(r'[\+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}', cleaned)
+        phone = phone_match.group(0) if phone_match else ""
+
+        # 3. Salutation
+        sal_match = re.search(r'(?:\\textbf\{)?(Dear\s+[^,\n]+,)(?:\})?', cleaned)
+        salutation = sal_match.group(1).strip() if sal_match else "Dear Hiring Team,"
+
+        # 4. Sign-off
+        sign_off_match = re.search(r'\b(Sincerely|Regards|Best regards|Respectfully|Warm regards),', cleaned, re.IGNORECASE)
+        sign_off = sign_off_match.group(0).strip() if sign_off_match else "Sincerely,"
+
+        # 5. Extract body content between salutation and sign-off
+        body_paragraphs = []
+        if sal_match:
+            post_sal = cleaned[sal_match.end():]
+            if sign_off_match:
+                end_idx = post_sal.find(sign_off_match.group(0))
+                body_raw = post_sal[:end_idx] if end_idx != -1 else post_sal
+            else:
+                body_raw = post_sal
+
+            # Clean LaTeX spacing and commands from body
+            body_clean = re.sub(r'\\vspace\{[^}]*\}', '\n', body_raw)
+            body_clean = re.sub(r'\\(?:hrule|newpage|bigskip|medskip|smallskip)', '', body_clean)
+            body_clean = re.sub(r'\\(?:textbf|textit|emph|textsc|texttt|underline)\s*\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', body_clean)
+            body_clean = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', body_clean)
+            body_clean = re.sub(r'[{}]', '', body_clean)
+
+            # Split paragraphs
+            raw_paras = [p.strip() for p in re.split(r'\n\s*\n', body_clean) if p.strip()]
+            for p in raw_paras:
+                p_norm = re.sub(r'\s+', ' ', p).strip()
+                if len(p_norm) > 15:
+                    body_paragraphs.append(p_norm)
+
+        opening = body_paragraphs[0] if body_paragraphs else "I am writing to express my interest in this position."
+        closing = body_paragraphs[-1] if len(body_paragraphs) > 1 else "Thank you for your consideration."
+        middle = body_paragraphs[1:-1] if len(body_paragraphs) > 2 else []
+
+        sender = Basics(name=name, email=email, phone=phone)
+        return CoverLetterData(
+            sender=sender,
+            salutation=salutation,
+            opening=opening,
+            body_paragraphs=middle,
+            closing=closing,
+            sign_off=sign_off
         )

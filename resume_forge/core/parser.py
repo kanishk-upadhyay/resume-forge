@@ -1,7 +1,8 @@
 """LaTeX Resume Parser: Converts raw LaTeX documents into structured ResumeData."""
 
 import re
-from typing import Dict, List, Tuple, Optional, Any
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional, Any, Union
 from .schema import (
     ResumeData, Basics, WorkItem, EducationItem, ProjectItem, SkillItem,
     OpenSourceItem, Profile, Location, CertificateItem, AwardItem,
@@ -241,7 +242,13 @@ INSTITUTION_INDICATORS = (
 class LatexResumeParser:
     """Intelligent multi-strategy parser for LaTeX CVs and Resumes."""
 
-    def __init__(self, latex_content: str):
+    def __init__(self, latex_content: Union[str, Path]):
+        if hasattr(latex_content, "read_text"):
+            latex_content = latex_content.read_text(encoding="utf-8")
+        elif isinstance(latex_content, bytes):
+            latex_content = latex_content.decode("utf-8")
+        elif not isinstance(latex_content, str):
+            latex_content = str(latex_content)
         self.raw = latex_content
         self.cleaned = self._strip_comments(latex_content)
 

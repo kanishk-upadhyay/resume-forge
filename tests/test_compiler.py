@@ -99,6 +99,33 @@ class TestResumeCompiler(unittest.TestCase):
             self.assertTrue(out_png.exists(), "PNG image must exist.")
             self.assertGreater(out_png.stat().st_size, 10000, "PNG image must not be empty.")
 
+    def test_compile_all_templates_method(self):
+        """Verify batch compilation generates PDFs for all registered templates."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            generated = self.compiler.compile_all_templates(
+                data=self.data,
+                output_dir=tmpdir,
+                prefix="batch_test"
+            )
+            self.assertEqual(len(generated), 7, f"Expected 7 generated files, got {len(generated)}")
+            for path in generated.values():
+                p = Path(path)
+                self.assertTrue(p.exists())
+                self.assertGreater(p.stat().st_size, 1000)
+                self.assertEqual(self.compiler.get_pdf_page_count(str(p)), 1)
+
+    def test_compile_cover_letter_single_page_guarantee(self):
+        """Verify cover letters compile to strict 1-page PDF across multiple templates."""
+        from resume_forge.core.letter import CoverLetterData
+        letter = CoverLetterData.from_resume(self.data, company="Anthropic", role="Alignment Researcher")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for tmpl in ["harvard", "jakes", "quant"]:
+                pdf_path = Path(tmpdir) / f"{tmpl}_letter.pdf"
+                ok = self.compiler.compile_cover_letter(letter, str(pdf_path), template=tmpl)
+                self.assertTrue(ok)
+                self.assertTrue(pdf_path.exists())
+                self.assertEqual(self.compiler.get_pdf_page_count(str(pdf_path)), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

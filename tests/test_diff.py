@@ -74,6 +74,77 @@ class TestResumeDiffEngine(unittest.TestCase):
         self.assertIn("basics_changed", d)
         self.assertIn("ats", d)
 
+    def test_education_diff(self):
+        """Verify education additions, modifications, and removals."""
+        from resume_forge.core.schema import EducationItem
+        # Modify existing degree
+        self.r2.education[0].study_type = "M.S. in Computer Science"
+        self.r2.education[0].end_date = "2027"
+        # Add new institution
+        self.r2.education.append(EducationItem(
+            institution="Stanford University",
+            study_type="Graduate Certificate in Systems",
+            start_date="2025",
+            end_date="2026"
+        ))
+
+        res = ResumeDiffEngine.diff(self.r1, self.r2)
+        edu_by_name = {e.institution: e for e in res.education}
+        self.assertIn("Stanford University", edu_by_name)
+        self.assertEqual(edu_by_name["Stanford University"].status, "added")
+
+        orig_inst = self.r1.education[0].institution
+        self.assertIn(orig_inst, edu_by_name)
+        self.assertEqual(edu_by_name[orig_inst].status, "modified")
+        self.assertEqual(edu_by_name[orig_inst].new_degree, "M.S. in Computer Science")
+
+        term_output = res.format_terminal(color=False)
+        self.assertIn("Education", term_output)
+        self.assertIn("Stanford University", term_output)
+
+    def test_open_source_and_expanded_sections_diff(self):
+        """Verify diffing of open source, awards, certs, publications, languages."""
+        from resume_forge.core.schema import OpenSourceItem, CertificateItem, AwardItem, PublicationItem
+        self.r2.open_source.append(OpenSourceItem(
+            project="linux-kernel",
+            highlights=["Patched eBPF verifier bounds check."]
+        ))
+        self.r2.certificates.append(CertificateItem(name="CKA: Certified Kubernetes Administrator"))
+        self.r2.awards.append(AwardItem(title="Turing Scholar Award"))
+        self.r2.publications.append(PublicationItem(name="High-Throughput Consensus in Asynchronous Networks"))
+        self.r2.languages.append("German")
+
+        res = ResumeDiffEngine.diff(self.r1, self.r2)
+        self.assertEqual(len(res.open_source), 1)
+        self.assertEqual(res.open_source[0].project, "linux-kernel")
+        self.assertEqual(res.open_source[0].status, "added")
+
+        self.assertIn("CKA: Certified Kubernetes Administrator", res.certificates_added)
+        self.assertIn("Turing Scholar Award", res.awards_added)
+        self.assertIn("High-Throughput Consensus in Asynchronous Networks", res.publications_added)
+        self.assertIn("German", res.languages_added)
+
+        term_colored = res.format_terminal(color=True)
+        self.assertIn("Open-Source Contributions", term_colored)
+        self.assertIn("Certifications", term_colored)
+        self.assertIn("Awards & Honors", term_colored)
+        self.assertIn("Publications", term_colored)
+        self.assertIn("Languages", term_colored)
+
+    def test_empty_resumes_diff(self):
+        """Verify diffing completely empty ResumeData objects handles all empty fields gracefully."""
+        from resume_forge.core.schema import ResumeData
+        r1 = ResumeData()
+        r2 = ResumeData()
+        res = ResumeDiffEngine.diff(r1, r2)
+        self.assertEqual(len(res.work), 0)
+        self.assertEqual(len(res.education), 0)
+        self.assertEqual(len(res.projects), 0)
+        self.assertEqual(len(res.open_source), 0)
+        self.assertEqual(res.score_delta, 0)
+        formatted = res.format_terminal(color=False)
+        self.assertIn("ATS Score Delta", formatted)
+
 
 if __name__ == "__main__":
     unittest.main()

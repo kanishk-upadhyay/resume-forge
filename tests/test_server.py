@@ -136,6 +136,30 @@ class TestStudioServer(unittest.TestCase):
         self.assertTrue(resp_data["success"])
         self.assertIn("pdf_url", resp_data)
 
+    def test_post_compile_cover_letter_pdf_endpoint(self):
+        resume_obj = {
+            "basics": {"name": "Carol Danvers", "email": "carol@example.com"},
+            "work": [{"name": "Starforce", "position": "Pilot", "highlights": ["Led flight operations"]}]
+        }
+        payload = json.dumps({
+            "resume": resume_obj,
+            "doc_type": "cover_letter",
+            "company": "Avengers",
+            "role": "Cosmic Defender",
+            "template": "harvard"
+        }).encode("utf-8")
+        handler = DummyStudioHandler()
+        handler.path = "/api/compile-pdf"
+        handler.headers = {"Content-Length": str(len(payload))}
+        handler.rfile = BytesIO(payload)
+
+        handler.do_POST()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertTrue(resp_data["success"])
+        self.assertIn("pdf_url", resp_data)
+
     def test_post_parse_json_direct(self):
         """Verify server /api/parse handles raw JSON resume payload seamlessly."""
         json_resume = {

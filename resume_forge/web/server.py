@@ -173,6 +173,7 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_compile_pdf(self, req_data: Dict[str, Any]):
         resume_dict = req_data.get("resume", {})
         template = req_data.get("template", "cern")
+        doc_type = req_data.get("doc_type", "resume")
         data = ResumeData.from_dict(resume_dict)
         font_size = float(req_data.get("font_size", 10.0))
         line_height = float(req_data.get("line_height", 1.25))
@@ -180,15 +181,30 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         compiler = ResumeCompiler()
         output_pdf = STATIC_DIR / "latest_resume.pdf"
-        success = compiler.compile_resume(
-            data=data,
-            output_pdf_path=str(output_pdf),
-            template=template,
-            font_size_pt=font_size,
-            line_height=line_height,
-            margin_in=margin,
-            auto_fit=True
-        )
+
+        if doc_type == "cover_letter":
+            letter_dict = req_data.get("letter")
+            if letter_dict:
+                letter = CoverLetterData.from_dict(letter_dict)
+            else:
+                company = req_data.get("company", "Target Company")
+                role = req_data.get("role", "Software Engineer")
+                letter = CoverLetterData.from_resume(data, company=company, role=role)
+            success = compiler.compile_cover_letter(
+                data=letter,
+                output_pdf_path=str(output_pdf),
+                template=template
+            )
+        else:
+            success = compiler.compile_resume(
+                data=data,
+                output_pdf_path=str(output_pdf),
+                template=template,
+                font_size_pt=font_size,
+                line_height=line_height,
+                margin_in=margin,
+                auto_fit=True
+            )
 
         if success and output_pdf.exists():
             pages = compiler.get_pdf_page_count(str(output_pdf))

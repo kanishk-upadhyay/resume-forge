@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
 from .schema import ResumeData
 from .exporter import ResumeExporter
 
@@ -211,19 +211,23 @@ class ResumeCompiler:
 
     def compile_cover_letter(
         self,
-        data: "CoverLetterData",
-        output_pdf_path: str,
+        data: Optional["CoverLetterData"] = None,
+        output_pdf_path: str = "",
         template: str = "cern",
         font_size_pt: Optional[float] = None,
         line_height: Optional[float] = None,
         margin_in: Optional[float] = None,
-        auto_fit: bool = True
+        auto_fit: bool = True,
+        letter: Optional["CoverLetterData"] = None
     ) -> bool:
         """Generates single-page cover letter PDF using template typography."""
+        target_letter = data or letter
+        if not target_letter:
+            raise ValueError("A CoverLetterData instance must be provided via 'data' or 'letter'.")
         from ..templates import TemplateRegistry
         tmpl = TemplateRegistry.get(template)
         html = tmpl.render_cover_letter_html(
-            data,
+            target_letter,
             font_size_pt=font_size_pt,
             line_height=line_height,
             margin_in=margin_in
@@ -310,3 +314,31 @@ class ResumeCompiler:
         exporter = ResumeExporter(data)
         html = exporter.to_html(template=template, font_size_pt=font_size_pt, line_height=line_height, margin_in=margin_in)
         return self.compile_html_to_image(html, output_image_path, dpi=dpi)
+
+    def compile_all_templates(
+        self,
+        data: ResumeData,
+        output_dir: Union[str, Path],
+        prefix: str = "resume",
+        fmt: str = "pdf",
+        dpi: int = 200,
+        auto_fit: bool = True
+    ) -> Dict[str, str]:
+        """Compiles resume data across all registered templates in batch.
+        
+        Returns a dictionary mapping template names to generated file paths.
+        """
+        from ..templates import TemplateRegistry
+        out_p = Path(output_dir)
+        out_p.mkdir(parents=True, exist_ok=True)
+        results = {}
+        for tmpl_meta in TemplateRegistry.list_templates():
+            t_name = tmpl_meta["name"]
+            out_file = out_p / f"{prefix}_{t_name}.{fmt}"
+            if fmt in ("png", "webp", "jpg", "jpeg"):
+                ok = self.compile_image(data, str(out_file), template=t_name, dpi=dpi)
+            else:
+                ok = self.compile_resume(data, str(out_file), template=t_name, auto_fit=auto_fit)
+            if ok and out_file.exists():
+                results[t_name] = str(out_file)
+        return results

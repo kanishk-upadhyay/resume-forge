@@ -73,20 +73,17 @@ def cmd_compile(args):
             out_dir = Path("compiled_templates")
         out_dir.mkdir(parents=True, exist_ok=True)
         print(f"Compiling all 7 templates to '{out_dir}/' in format '{fmt}'...")
-        for tmpl_meta in TemplateRegistry.list_templates():
-            t_name = tmpl_meta["name"]
-            t_out = out_dir / f"{Path(args.input).stem}_{t_name}.{fmt}"
-            if fmt in ("png", "webp", "jpg", "jpeg"):
-                compiler.compile_image(resume_data, str(t_out), template=t_name, dpi=dpi)
-            else:
-                compiler.compile_resume(
-                    data=resume_data,
-                    output_pdf_path=str(t_out),
-                    template=t_name,
-                    auto_fit=not getattr(args, "no_auto_fit", False)
-                )
-            print(f"  ✓ {t_name:<12} ➔ {t_out.name}")
-        print(f"✓ All 7 templates compiled successfully into '{out_dir}'")
+        results = compiler.compile_all_templates(
+            data=resume_data,
+            output_dir=out_dir,
+            prefix=Path(args.input).stem,
+            fmt=fmt,
+            dpi=dpi,
+            auto_fit=not getattr(args, "no_auto_fit", False)
+        )
+        for t_name, out_file in results.items():
+            print(f"  ✓ {t_name:<12} ➔ {Path(out_file).name}")
+        print(f"✓ All {len(results)} templates compiled successfully into '{out_dir}'")
         return
 
     out_file = args.output or f"resume.{fmt}"
@@ -278,13 +275,13 @@ def cmd_tailor(args):
     
     jd_text = ""
     if args.jd:
-        jd_p = Path(args.jd)
-        if jd_p.exists():
-            jd_text = jd_p.read_text(encoding="utf-8")
-        else:
+        try:
+            jd_text = fetch_job_description(args.jd)
+        except Exception as e:
+            print(f"Notice: Failed to fetch online JD ({e}); using raw string input.", file=sys.stderr)
             jd_text = args.jd
     else:
-        print("Error: Target job description (--jd) is required for tailoring.", file=sys.stderr)
+        print("Error: Target job description (--jd/--jd-url) is required for tailoring.", file=sys.stderr)
         sys.exit(1)
 
     tailor_engine = BulletTailor(resume_data)
@@ -450,6 +447,18 @@ def cmd_letter(args):
         in_p = Path(args.input)
         if in_p.suffix.lower() == ".json":
             letter_data = CoverLetterData.from_json(in_p.read_text(encoding="utf-8"))
+        elif in_p.suffix.lower() in (".tex", ".latex"):
+            content = in_p.read_text(encoding="utf-8")
+            if "Dear " in content or "Cover Letter" in content or "Sincerely" in content or "Regards" in content:
+                from .core.letter import LatexCoverLetterParser
+                letter_data = LatexCoverLetterParser(content).parse()
+            else:
+                resume_data = load_resume(args.input)
+                letter_data = CoverLetterData.from_resume(
+                    resume_data,
+                    company=getattr(args, "company", "") or "Target Company",
+                    role=getattr(args, "role", "") or "Software Engineer"
+                )
         else:
             resume_data = load_resume(args.input)
             letter_data = CoverLetterData.from_resume(
@@ -471,6 +480,18 @@ def cmd_letter(args):
         in_p = Path(args.input)
         if in_p.suffix.lower() == ".json":
             letter_data = CoverLetterData.from_json(in_p.read_text(encoding="utf-8"))
+        elif in_p.suffix.lower() in (".tex", ".latex"):
+            content = in_p.read_text(encoding="utf-8")
+            if "Dear " in content or "Cover Letter" in content or "Sincerely" in content or "Regards" in content:
+                from .core.letter import LatexCoverLetterParser
+                letter_data = LatexCoverLetterParser(content).parse()
+            else:
+                resume_data = load_resume(args.input)
+                letter_data = CoverLetterData.from_resume(
+                    resume_data,
+                    company=getattr(args, "company", "") or "Target Company",
+                    role=getattr(args, "role", "") or "Software Engineer"
+                )
         else:
             resume_data = load_resume(args.input)
             letter_data = CoverLetterData.from_resume(
@@ -576,7 +597,7 @@ def main():
     # audit
     p_audit = subparsers.add_parser("audit", help="Run ATS and single-page budget inspection")
     p_audit.add_argument("input", help="Path to resume file (.tex or .json)")
-    p_audit.add_argument("--jd", help="Target job description text, file path, or live URL")
+    p_audit.add_argument("--jd", "--jd-url", dest="jd", help="Target job description text, file path, or live URL")
     p_audit.set_defaults(func=cmd_audit)
 
     # diff
@@ -654,7 +675,7 @@ def main():
     # tailor
     p_tailor = subparsers.add_parser("tailor", help="Optimize bullet points against a target job description")
     p_tailor.add_argument("input", help="Path to resume file (.tex or .json)")
-    p_tailor.add_argument("--jd", required=True, help="Target job description text or file path")
+    p_tailor.add_argument("--jd", "--jd-url", dest="jd", required=True, help="Target job description text, file path, or live URL")
     p_tailor.add_argument("--provider", choices=["rule_based", "ollama"], default="rule_based", help="Tailoring provider (default: rule_based)")
     p_tailor.add_argument("-i", "--interactive", action="store_true", help="Prompt to accept each improvement interactively")
     p_tailor.add_argument("--apply-all", action="store_true", help="Automatically accept all suggested rewrites")
