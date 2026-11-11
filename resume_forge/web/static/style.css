@@ -13,6 +13,15 @@
   --paper-bg: #ffffff;
 }
 
+body.light-theme {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #cbd5e1;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

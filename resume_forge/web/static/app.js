@@ -28,13 +28,35 @@ let currentZoom = 1.0;
 let currentTemplate = "cern";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  setupThemeToggle();
   setupTabs();
   setupSliders();
   setupActionButtons();
   setupTemplateSelector();
   setupZoom();
+  setupDragAndDrop();
+  setupJDFetcher();
+  setupCoverLetter();
   await loadInitialSample();
 });
+
+function setupThemeToggle() {
+  const btn = document.getElementById("btn-toggle-theme");
+  if (!btn) return;
+
+  const savedTheme = localStorage.getItem("rf-theme");
+  if (savedTheme === "light") {
+    document.body.classList.add("light-theme");
+    btn.textContent = "☀️";
+  }
+
+  btn.addEventListener("click", () => {
+    document.body.classList.toggle("light-theme");
+    const isLight = document.body.classList.contains("light-theme");
+    btn.textContent = isLight ? "☀️" : "🌙";
+    localStorage.setItem("rf-theme", isLight ? "light" : "dark");
+  });
+}
 
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -379,6 +401,123 @@ function setupZoom() {
 function applyZoom() {
   document.getElementById("resume-paper").style.transform = `scale(${currentZoom})`;
   document.getElementById("zoom-level").textContent = `${Math.round(currentZoom * 100)}%`;
+}
+
+function setupDragAndDrop() {
+  window.addEventListener("dragover", (e) => {
+    e.preventDefault();
+  });
+
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+    const file = e.dataTransfer.files[0];
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const content = evt.target.result;
+      if (file.name.endsWith(".json")) {
+        try {
+          currentResume = JSON.parse(content);
+          populateForm();
+          renderPreview();
+          alert(`Successfully loaded JSON resume: ${currentResume.basics?.name || "Candidate"}`);
+        } catch (err) {
+          alert("Invalid JSON resume file.");
+        }
+      } else {
+        document.getElementById("latex-editor").value = content;
+        try {
+          const resp = await fetch("/api/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latex: content })
+          });
+          const data = await resp.json();
+          if (data.resume) {
+            currentResume = data.resume;
+            populateForm();
+            renderPreview();
+            alert(`Parsed ${file.name} successfully!`);
+            return;
+          }
+        } catch (err) {
+          if (window.ClientResumeEngine) {
+            currentResume = window.ClientResumeEngine.parseLatex(content);
+            populateForm();
+            renderPreview();
+            alert(`Parsed offline: ${currentResume.work?.length || 0} jobs!`);
+          }
+        }
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+function setupJDFetcher() {
+  const btn = document.getElementById("btn-fetch-jd-url");
+  const inp = document.getElementById("jd-url-input");
+  const jdText = document.getElementById("jd-input");
+  if (!btn || !inp || !jdText) return;
+
+  btn.addEventListener("click", async () => {
+    const url = inp.value.trim();
+    if (!url) {
+      alert("Please paste a valid job posting URL.");
+      return;
+    }
+    const origText = btn.textContent;
+    btn.textContent = "⏳ Fetching...";
+    btn.disabled = true;
+    try {
+      const resp = await fetch("/api/fetch-jd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+      const data = await resp.json();
+      if (data.text) {
+        jdText.value = data.text;
+        document.getElementById("btn-run-audit")?.click();
+      } else {
+        alert(data.error || "Failed to extract text from URL.");
+      }
+    } catch (err) {
+      alert("Could not reach backend URL fetcher. Try copying and pasting job text directly.");
+    } finally {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  });
+}
+
+function setupCoverLetter() {
+  const btn = document.getElementById("btn-cover-letter");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    const company = prompt("Enter target company name:", "Google") || "Target Company";
+    const role = prompt("Enter target role title:", "Software Engineer") || "Software Engineer";
+
+    try {
+      const resp = await fetch("/api/cover-letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume: currentResume,
+          company: company,
+          role: role,
+          template: currentTemplate
+        })
+      });
+      const data = await resp.json();
+      if (data.latex) {
+        downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_${company}_Cover_Letter.tex`, data.latex);
+      }
+    } catch (err) {
+      alert("Failed to synthesize cover letter.");
+    }
+  });
 }
 
 async function loadInitialSample() {

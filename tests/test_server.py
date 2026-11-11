@@ -182,6 +182,57 @@ class TestStudioServer(unittest.TestCase):
         self.assertIn("latex", resp_data)
         self.assertIn("harvard", resp_data["latex"].lower())
 
+    def test_fetch_jd_endpoint(self):
+        handler = DummyStudioHandler()
+        handler.path = "/api/fetch-jd"
+        payload = json.dumps({"url": "Seeking fullstack engineer with React and Python."}).encode("utf-8")
+        handler.rfile = BytesIO(payload)
+        handler.headers = {"Content-Length": str(len(payload))}
+        handler.do_POST()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertIn("text", resp_data)
+        self.assertIn("React and Python", resp_data["text"])
+
+    def test_cover_letter_endpoint(self):
+        handler = DummyStudioHandler()
+        handler.path = "/api/cover-letter"
+        payload = json.dumps({
+            "resume": {
+                "basics": {"name": "Grace Hopper", "email": "grace@usnavy.mil"},
+                "work": [{"name": "US Navy", "position": "Rear Admiral", "highlights": ["Pioneered COBOL compiler"]}]
+            },
+            "company": "DARPA",
+            "role": "Chief Scientist",
+            "template": "harvard"
+        }).encode("utf-8")
+        handler.rfile = BytesIO(payload)
+        handler.headers = {"Content-Length": str(len(payload))}
+        handler.do_POST()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertIn("latex", resp_data)
+        self.assertIn("Grace Hopper", resp_data["latex"])
+        self.assertIn("DARPA", resp_data["latex"])
+
+    def test_diff_endpoint(self):
+        handler = DummyStudioHandler()
+        handler.path = "/api/diff"
+        payload = json.dumps({
+            "old_resume": {"basics": {"name": "Grace Hopper", "email": "old@navy.mil"}},
+            "new_resume": {"basics": {"name": "Grace Hopper", "email": "new@navy.mil"}}
+        }).encode("utf-8")
+        handler.rfile = BytesIO(payload)
+        handler.headers = {"Content-Length": str(len(payload))}
+        handler.do_POST()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertIn("basics_changed", resp_data)
+        self.assertIn("email", resp_data["basics_changed"])
+
     def test_404_not_found(self):
         handler = DummyStudioHandler()
         handler.path = "/api/nonexistent_endpoint"

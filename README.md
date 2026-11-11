@@ -50,17 +50,52 @@ chmod +x bin/resume-forge
 ```bash
 # Compiles your .tex resume to a single-page PDF in < 1s
 ./bin/resume-forge compile examples/kanishk_cern_fullstack_resume.tex -o resume.pdf
+
+# Select any canonical template (cern, harvard, jakes, minimalist, quant, awesome, academic):
+./bin/resume-forge compile resume.tex -t harvard -o harvard_resume.pdf
+
+# Render high-DPI image screenshot for LinkedIn / web portfolios:
+./bin/resume-forge compile resume.tex -f png --dpi 300 -o resume.png
+
+# Batch-compile all 7 canonical templates simultaneously:
+./bin/resume-forge compile resume.tex --all-templates -o dist/
 ```
 
-### 3. Parse LaTeX to Standard JSON Resume
+### 3. Generate Matching One-Page Cover Letter
+```bash
+# Synthesize a tailored 1-page cover letter matching your resume typography:
+./bin/resume-forge letter create resume.tex \
+  --company "Google" \
+  --role "Systems Engineer" \
+  --template harvard \
+  -o cover_letter.pdf
+
+# Export matching cover letter LaTeX or JSON:
+./bin/resume-forge letter export resume.tex --company "Citadel" --role "Quant Developer" -t quant -o letter.tex
+```
+
+### 4. Structural Resume AST Diff Tool
+```bash
+# Compare two resumes with colored terminal output and ATS score delta:
+./bin/resume-forge diff v1_resume.tex v2_resume.tex
+
+# Export machine-readable diff for CI/CD checks:
+./bin/resume-forge diff v1_resume.tex v2_resume.tex --json
+```
+
+### 5. Parse LaTeX to Standard JSON Resume
 ```bash
 ./bin/resume-forge parse examples/kanishk_cern_fullstack_resume.tex -o resume.json
 ```
 
-### 4. Run ATS & Page Budget Audit
+### 6. Run ATS & Page Budget Audit (with Live URL Fetching)
 ```bash
+# Audit against raw text:
 ./bin/resume-forge audit examples/kanishk_cern_fullstack_resume.tex \
   --jd "Seeking fullstack engineer with Python, C, React, Vue.js, Linux, Nginx, Docker, Git"
+
+# Audit directly against a live job posting URL (Greenhouse, Lever, Ashby, etc.):
+./bin/resume-forge audit resume.tex --jd "https://boards.greenhouse.io/stripe/jobs/12345"
 ```
 **Sample Output:**
 ```

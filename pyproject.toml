@@ -30,3 +30,12 @@ include = ["resume_forge*"]
 
 [tool.setuptools.package-data]
 resume_forge = ["templates/*", "web/static/*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [".git", "__pycache__", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90"]
+ignore = ["E501"]

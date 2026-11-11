@@ -34,23 +34,48 @@ python3 -m resume_forge.cli compile path/to/resume.tex -o output/resume.pdf
 
 # Or using the binary:
 resume-forge compile path/to/resume.tex -o resume.pdf
+
+# Select any canonical template (cern, harvard, jakes, minimalist, quant, awesome, academic):
+resume-forge compile resume.tex -t harvard -o harvard_resume.pdf
+
+# Render high-DPI image screenshot (300 DPI) for LinkedIn / web portfolios:
+resume-forge compile resume.tex -f png --dpi 300 -o resume.png
+
+# Batch-compile all 7 templates simultaneously:
+resume-forge compile resume.tex --all-templates -o dist/
 ```
 * Uses in-house headless Chrome or Tectonic.
-* Guarantees single-page fit with Latin Modern Roman / Computer Modern serif typography.
+* Guarantees single-page fit across all 7 archetypes with genuine typography.
 * Automatic progressive compression (`auto_fit` enabled by default: compresses margins, font size, and line height to strictly lock to 1 page if content overflows).
 * Supports custom margins and font sizes (`--font-size 9.5 --margin 0.35`).
 
-### 2. Parse LaTeX Resume into Standard JSON Resume
-Supports Jake's Resume, CERN, ModernCV, Awesome-CV, and Deedy formats.
-Extracts contact info, summary, jobs, education, projects, open-source work, technical skills, certifications, awards, publications, and languages:
+### 2. Generate Matching One-Page Cover Letter
+Synthesize a tailored 1-page cover letter matching your resume typography and margins:
+```bash
+# Create and compile matching PDF:
+resume-forge letter create resume.tex --company "Google" --role "Systems Engineer" -t harvard -o letter.pdf
+
+# Export matching LaTeX:
+resume-forge letter export resume.tex --company "Citadel" --role "Quant Developer" -t quant -o letter.tex
+```
+
+### 3. Structural Resume AST Diff Tool
+Compare two resumes or variants with colored ANSI output and ATS score delta:
+```bash
+resume-forge diff v1_resume.tex v2_resume.tex
+resume-forge diff v1_resume.tex v2_resume.tex --json
+```
+
+### 4. Parse LaTeX Resume into Standard JSON Resume
+Supports Jake's Resume, CERN, Harvard, ModernCV, Awesome-CV, Quant, and Deedy formats:
 ```bash
 python3 -m resume_forge.cli parse path/to/resume.tex -o resume.json
 ```
 
-### 3. Run ATS Audit & Single-Page Budget Inspection
-Check ATS score, action verb percentage, quantifiable metrics, and keyword match against a job description:
+### 5. Run ATS Audit & Single-Page Budget Inspection
+Check ATS score, action verb percentage, quantifiable metrics, and keyword match against raw text or a live posting URL (Greenhouse, Lever, Ashby, etc.):
 ```bash
-python3 -m resume_forge.cli audit path/to/resume.tex --jd "Target job description text or file"
+resume-forge audit path/to/resume.tex --jd "https://boards.greenhouse.io/stripe/jobs/12345"
 ```
 
 ### 4. Launch In-House Reactive Resume Web Studio

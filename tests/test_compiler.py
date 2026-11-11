@@ -85,6 +85,20 @@ class TestResumeCompiler(unittest.TestCase):
 
         self.assertTrue(all(results), f"All concurrent jobs should succeed, got {results}")
 
+    def test_compile_high_dpi_image(self):
+        """Verify image compilation creates high-resolution PNG image."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_png = Path(tmpdir) / "test_screenshot.png"
+            success = self.compiler.compile_image(
+                data=self.data,
+                output_image_path=str(out_png),
+                template="minimalist",
+                dpi=150
+            )
+            self.assertTrue(success, "Image compilation should succeed.")
+            self.assertTrue(out_png.exists(), "PNG image must exist.")
+            self.assertGreater(out_png.stat().st_size, 10000, "PNG image must not be empty.")
+
 
 if __name__ == "__main__":
     unittest.main()

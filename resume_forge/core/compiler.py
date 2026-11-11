@@ -6,9 +6,12 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TYPE_CHECKING
 from .schema import ResumeData
 from .exporter import ResumeExporter
+
+if TYPE_CHECKING:
+    from .letter import CoverLetterData
 
 
 class ResumeCompiler:
@@ -205,3 +208,105 @@ class ResumeCompiler:
                         break
 
         return True
+
+    def compile_cover_letter(
+        self,
+        data: "CoverLetterData",
+        output_pdf_path: str,
+        template: str = "cern",
+        font_size_pt: Optional[float] = None,
+        line_height: Optional[float] = None,
+        margin_in: Optional[float] = None,
+        auto_fit: bool = True
+    ) -> bool:
+        """Generates single-page cover letter PDF using template typography."""
+        from ..templates import TemplateRegistry
+        tmpl = TemplateRegistry.get(template)
+        html = tmpl.render_cover_letter_html(
+            data,
+            font_size_pt=font_size_pt,
+            line_height=line_height,
+            margin_in=margin_in
+        )
+        effective_margin = margin_in if margin_in is not None else tmpl.default_margin
+        success = self.compile_html_to_pdf(html, output_pdf_path, margin_in=effective_margin)
+        if not success:
+            return False
+
+        if auto_fit and self.get_pdf_page_count(output_pdf_path) > 1:
+            tiers = [
+                (9.5, 1.20, 0.35),
+                (9.0, 1.15, 0.30),
+                (8.5, 1.10, 0.28)
+            ]
+            for f_pt, lh, m_in in tiers:
+                html_sq = tmpl.render_cover_letter_html(data, font_size_pt=f_pt, line_height=lh, margin_in=m_in)
+                self.compile_html_to_pdf(html_sq, output_pdf_path, margin_in=m_in)
+                if self.get_pdf_page_count(output_pdf_path) <= 1:
+                    break
+
+        return True
+
+    def compile_html_to_image(
+        self,
+        html_content: str,
+        output_image_path: str,
+        dpi: int = 300
+    ) -> bool:
+        """Renders HTML into a high-DPI image (PNG, WebP, JPG) using headless Chrome screenshot."""
+        if not self.chrome_bin:
+            raise RuntimeError(
+                "Google Chrome or Chromium is required for image rendering. "
+                "Please ensure Chrome is installed."
+            )
+
+        output_path = Path(output_image_path).resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        scale = max(1.0, dpi / 96.0)
+        width_px = int(8.5 * dpi)
+        height_px = int(11.0 * dpi)
+
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
+            f.write(html_content)
+            temp_html = f.name
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="chrome-img-data-") as user_data_dir:
+                cmd = [
+                    self.chrome_bin,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    f"--user-data-dir={user_data_dir}",
+                    f"--crash-dumps-dir={user_data_dir}",
+                    f"--window-size={width_px},{height_px}",
+                    f"--force-device-scale-factor={scale:.2f}",
+                    "--hide-scrollbars",
+                    f"--screenshot={str(output_path)}",
+                    f"file://{temp_html}"
+                ]
+                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+                if not output_path.exists() or output_path.stat().st_size == 0:
+                    cmd[1] = "--headless"
+                    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+
+                return output_path.exists() and output_path.stat().st_size > 0
+        finally:
+            if os.path.exists(temp_html):
+                os.remove(temp_html)
+
+    def compile_image(
+        self,
+        data: ResumeData,
+        output_image_path: str,
+        template: str = "cern",
+        dpi: int = 300,
+        font_size_pt: Optional[float] = None,
+        line_height: Optional[float] = None,
+        margin_in: Optional[float] = None
+    ) -> bool:
+        """Renders resume to a high-DPI image using the selected template."""
+        exporter = ResumeExporter(data)
+        html = exporter.to_html(template=template, font_size_pt=font_size_pt, line_height=line_height, margin_in=margin_in)
+        return self.compile_html_to_image(html, output_image_path, dpi=dpi)

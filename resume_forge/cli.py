@@ -14,6 +14,11 @@ from .core.schema import ResumeData
 from .core.variants import VariantManager
 from .core.tailor import BulletTailor
 from .core.hunter import JobHunter
+from .core.letter import CoverLetterData, CoverLetterRecipient
+from .core.diff import ResumeDiffEngine
+from .core.fetcher import fetch_job_description
+from .templates import TemplateRegistry
+from .completion import generate_bash_completion, generate_zsh_completion, generate_fish_completion
 
 
 
@@ -53,26 +58,72 @@ def cmd_parse(args):
 
 
 def cmd_compile(args):
-    """Compiles LaTeX or JSON resume to PDF in-house without Overleaf."""
+    """Compiles LaTeX or JSON resume to PDF or Image in-house without Overleaf."""
     resume_data = load_resume(args.input)
     compiler = ResumeCompiler()
-    out_pdf = args.output or "resume.pdf"
+    fmt = getattr(args, "format", "pdf").lower()
+    dpi = getattr(args, "dpi", 300) or 300
 
-    print(f"Compiling '{args.input}' to '{out_pdf}' in-house...")
+    # Batch all templates
+    if getattr(args, "all_templates", False):
+        raw_out = args.output
+        if raw_out and not raw_out.endswith(f".{fmt}"):
+            out_dir = Path(raw_out)
+        else:
+            out_dir = Path("compiled_templates")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Compiling all 7 templates to '{out_dir}/' in format '{fmt}'...")
+        for tmpl_meta in TemplateRegistry.list_templates():
+            t_name = tmpl_meta["name"]
+            t_out = out_dir / f"{Path(args.input).stem}_{t_name}.{fmt}"
+            if fmt in ("png", "webp", "jpg", "jpeg"):
+                compiler.compile_image(resume_data, str(t_out), template=t_name, dpi=dpi)
+            else:
+                compiler.compile_resume(
+                    data=resume_data,
+                    output_pdf_path=str(t_out),
+                    template=t_name,
+                    auto_fit=not getattr(args, "no_auto_fit", False)
+                )
+            print(f"  ✓ {t_name:<12} ➔ {t_out.name}")
+        print(f"✓ All 7 templates compiled successfully into '{out_dir}'")
+        return
+
+    out_file = args.output or f"resume.{fmt}"
+    template = getattr(args, "template", "cern")
+
+    if fmt in ("png", "webp", "jpg", "jpeg"):
+        print(f"Rendering high-DPI image ({dpi} DPI) using template '{template}' to '{out_file}'...")
+        success = compiler.compile_image(
+            data=resume_data,
+            output_image_path=out_file,
+            template=template,
+            dpi=dpi,
+            font_size_pt=args.font_size,
+            line_height=args.line_height,
+            margin_in=args.margin
+        )
+        if success:
+            print(f"✓ High-DPI {fmt.upper()} image generated: {out_file}")
+        else:
+            print(f"✗ Failed to generate image.", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    print(f"Compiling '{args.input}' to '{out_file}' using template '{template}' in-house...")
 
     if args.method == "tectonic" or (args.input.endswith(".tex") and args.method == "auto" and compiler.tectonic_bin):
         # Try raw LaTeX compilation
-        raw_tex = Path(args.input).read_text(encoding="utf-8") if args.input.endswith(".tex") else ResumeExporter(resume_data).to_latex()
-        success, msg = compiler.compile_latex_to_pdf(raw_tex, out_pdf)
+        raw_tex = Path(args.input).read_text(encoding="utf-8") if args.input.endswith(".tex") else ResumeExporter(resume_data).to_latex(template=template)
+        success, msg = compiler.compile_latex_to_pdf(raw_tex, out_file)
         if success:
-            print(f"✓ PDF compiled successfully via Tectonic: {out_pdf}")
+            print(f"✓ PDF compiled successfully via Tectonic: {out_file}")
             return
 
     # Default robust engine: In-house headless Chrome
-    template = getattr(args, "template", "cern")
     success = compiler.compile_resume(
         data=resume_data,
-        output_pdf_path=out_pdf,
+        output_pdf_path=out_file,
         template=template,
         font_size_pt=args.font_size,
         line_height=args.line_height,
@@ -81,11 +132,11 @@ def cmd_compile(args):
     )
 
     if success:
-        pages = compiler.get_pdf_page_count(out_pdf)
+        pages = compiler.get_pdf_page_count(out_file)
         if pages == 1:
-            print(f"✓ Single-page PDF compiled successfully in-house (1 page): {out_pdf}")
+            print(f"✓ Single-page PDF compiled successfully in-house (1 page): {out_file}")
         else:
-            print(f"✓ PDF compiled successfully ({pages} pages): {out_pdf}")
+            print(f"✓ PDF compiled successfully ({pages} pages): {out_file}")
     else:
         print(f"✗ Failed to compile PDF. Ensure Google Chrome is installed.", file=sys.stderr)
         sys.exit(1)
@@ -95,9 +146,30 @@ def cmd_export(args):
     """Exports resume into specified format (tex, json, html, md)."""
     resume_data = load_resume(args.input)
     exporter = ResumeExporter(resume_data)
-    template = getattr(args, "template", "cern")
-
     fmt = args.format.lower()
+
+    if getattr(args, "all_templates", False):
+        out_dir = Path(args.output or "exported_templates")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Exporting all templates to '{out_dir}/' in format '{fmt}'...")
+        for tmpl_meta in TemplateRegistry.list_templates():
+            t_name = tmpl_meta["name"]
+            ext = "tex" if fmt in ("tex", "latex") else fmt
+            out_file = out_dir / f"{Path(args.input).stem}_{t_name}.{ext}"
+            if fmt in ("tex", "latex"):
+                content = exporter.to_latex(template=t_name)
+            elif fmt == "html":
+                content = exporter.to_html(template=t_name)
+            elif fmt == "json":
+                content = resume_data.to_json(indent=2)
+            else:
+                content = exporter.to_markdown()
+            out_file.write_text(content, encoding="utf-8")
+            print(f"  ✓ {t_name:<12} ➔ {out_file.name}")
+        print(f"✓ Exported all templates to '{out_dir}'")
+        return
+
+    template = getattr(args, "template", "cern")
     if fmt == "tex" or fmt == "latex":
         out_content = exporter.to_latex(template=template)
     elif fmt == "json":
@@ -126,10 +198,10 @@ def cmd_audit(args):
 
     jd_text = ""
     if args.jd:
-        jd_p = Path(args.jd)
-        if jd_p.exists():
-            jd_text = jd_p.read_text(encoding="utf-8")
-        else:
+        try:
+            jd_text = fetch_job_description(args.jd)
+        except Exception as e:
+            print(f"Notice: Failed to fetch online JD ({e}); using raw string input.", file=sys.stderr)
             jd_text = args.jd
 
     report = analyzer.analyze(job_description=jd_text)
@@ -312,6 +384,131 @@ def cmd_hunt(args):
         print("")
 
 
+def cmd_diff(args):
+    """Computes a structural AST-level diff between two resumes."""
+    r1 = load_resume(args.v1)
+    r2 = load_resume(args.v2)
+    diff_res = ResumeDiffEngine.diff(r1, r2)
+
+    if getattr(args, "json", False):
+        print(json.dumps(diff_res.to_dict(), indent=2, ensure_ascii=False))
+    else:
+        use_color = not getattr(args, "no_color", False)
+        print(diff_res.format_terminal(color=use_color))
+
+
+def cmd_letter(args):
+    """Synthesizes, exports, or compiles tailored single-page cover letters matching resume templates."""
+    sub = args.letter_cmd
+    template = getattr(args, "template", "cern")
+    tmpl = TemplateRegistry.get(template)
+
+    if sub == "create":
+        resume_data = load_resume(args.input)
+        company = getattr(args, "company", "") or "Target Company"
+        role = getattr(args, "role", "") or "Software Engineer"
+        recipient = getattr(args, "recipient", "") or ""
+        city = getattr(args, "city", "") or ""
+
+        letter_data = CoverLetterData.from_resume(
+            resume=resume_data,
+            company=company,
+            role=role,
+            recipient_name=recipient,
+            city=city
+        )
+
+        out_path = args.output
+        if not out_path:
+            print(letter_data.to_json())
+            return
+
+        out_p = Path(out_path)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        ext = out_p.suffix.lower()
+
+        if ext == ".json":
+            out_p.write_text(letter_data.to_json(), encoding="utf-8")
+            print(f"✓ Created cover letter JSON data: {out_p}")
+        elif ext in (".tex", ".latex"):
+            tex = tmpl.render_cover_letter_latex(letter_data)
+            out_p.write_text(tex, encoding="utf-8")
+            print(f"✓ Created cover letter LaTeX ({template}): {out_p}")
+        elif ext == ".pdf":
+            compiler = ResumeCompiler()
+            compiler.compile_cover_letter(letter_data, str(out_p), template=template)
+            print(f"✓ Compiled single-page cover letter PDF ({template}): {out_p}")
+        elif ext == ".html":
+            html = tmpl.render_cover_letter_html(letter_data)
+            out_p.write_text(html, encoding="utf-8")
+            print(f"✓ Created cover letter HTML ({template}): {out_p}")
+        else:
+            out_p.write_text(letter_data.to_json(), encoding="utf-8")
+            print(f"✓ Created cover letter: {out_p}")
+
+    elif sub == "compile":
+        in_p = Path(args.input)
+        if in_p.suffix.lower() == ".json":
+            letter_data = CoverLetterData.from_json(in_p.read_text(encoding="utf-8"))
+        else:
+            resume_data = load_resume(args.input)
+            letter_data = CoverLetterData.from_resume(
+                resume_data,
+                company=getattr(args, "company", "") or "Target Company",
+                role=getattr(args, "role", "") or "Software Engineer"
+            )
+
+        out_pdf = args.output or "cover_letter.pdf"
+        compiler = ResumeCompiler()
+        success = compiler.compile_cover_letter(letter_data, out_pdf, template=template)
+        if success:
+            print(f"✓ Compiled single-page cover letter PDF ({template}): {out_pdf}")
+        else:
+            print("✗ Failed to compile cover letter PDF.", file=sys.stderr)
+            sys.exit(1)
+
+    elif sub == "export":
+        in_p = Path(args.input)
+        if in_p.suffix.lower() == ".json":
+            letter_data = CoverLetterData.from_json(in_p.read_text(encoding="utf-8"))
+        else:
+            resume_data = load_resume(args.input)
+            letter_data = CoverLetterData.from_resume(
+                resume_data,
+                company=getattr(args, "company", "") or "Target Company",
+                role=getattr(args, "role", "") or "Software Engineer"
+            )
+
+        fmt = getattr(args, "format", "tex").lower()
+        if fmt in ("tex", "latex"):
+            content = tmpl.render_cover_letter_latex(letter_data)
+        elif fmt == "html":
+            content = tmpl.render_cover_letter_html(letter_data)
+        elif fmt == "json":
+            content = letter_data.to_json()
+        else:
+            content = f"{letter_data.salutation}\n\n{letter_data.opening}\n\n" + "\n\n".join(letter_data.body_paragraphs) + f"\n\n{letter_data.closing}\n\n{letter_data.sign_off}\n{letter_data.sender.name}"
+
+        if args.output:
+            out_p = Path(args.output)
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            out_p.write_text(content, encoding="utf-8")
+            print(f"✓ Exported cover letter {fmt.upper()} ({template}) to '{args.output}'")
+        else:
+            print(content)
+
+
+def cmd_completion(args):
+    """Outputs shell autocompletion script."""
+    shell = (getattr(args, "shell", "") or "bash").lower()
+    if shell == "zsh":
+        print(generate_zsh_completion())
+    elif shell == "fish":
+        print(generate_fish_completion())
+    else:
+        print(generate_bash_completion())
+
+
 def cmd_template(args):
     """Lists and inspects available resume presentation templates."""
     from .templates import TemplateRegistry
@@ -353,10 +550,13 @@ def main():
     p_parse.set_defaults(func=cmd_parse)
 
     # compile
-    p_compile = subparsers.add_parser("compile", help="Compile .tex or .json to single-page PDF in-house")
+    p_compile = subparsers.add_parser("compile", help="Compile .tex or .json to single-page PDF or high-DPI image in-house")
     p_compile.add_argument("input", help="Path to input .tex or .json resume")
-    p_compile.add_argument("-o", "--output", default="resume.pdf", help="Output PDF file path (default: resume.pdf)")
+    p_compile.add_argument("-o", "--output", default=None, help="Output destination path (default: resume.pdf or output folder)")
     p_compile.add_argument("-t", "--template", default="cern", help="Template style: cern, harvard, jakes, minimalist, quant, awesome, academic (default: cern)")
+    p_compile.add_argument("-f", "--format", choices=["pdf", "png", "webp", "jpg", "jpeg"], default="pdf", help="Output file format (default: pdf)")
+    p_compile.add_argument("--dpi", type=int, default=300, help="DPI resolution for image screenshot rendering (default: 300)")
+    p_compile.add_argument("--all-templates", action="store_true", help="Compile across all 7 canonical templates into destination folder")
     p_compile.add_argument("--method", choices=["auto", "chrome", "tectonic"], default="auto", help="Compiler engine")
     p_compile.add_argument("--font-size", type=float, default=None, help="Base font size in pt (default: template default)")
     p_compile.add_argument("--line-height", type=float, default=None, help="Line height multiplier (default: template default)")
@@ -369,14 +569,59 @@ def main():
     p_export.add_argument("input", help="Input file path")
     p_export.add_argument("-f", "--format", choices=["tex", "latex", "json", "html", "md", "markdown"], required=True)
     p_export.add_argument("-t", "--template", default="cern", help="Template style: cern, harvard, jakes, minimalist, quant, awesome, academic (default: cern)")
+    p_export.add_argument("--all-templates", action="store_true", help="Export across all templates into output folder")
     p_export.add_argument("-o", "--output", help="Output file path (stdout if omitted)")
     p_export.set_defaults(func=cmd_export)
 
     # audit
     p_audit = subparsers.add_parser("audit", help="Run ATS and single-page budget inspection")
     p_audit.add_argument("input", help="Path to resume file (.tex or .json)")
-    p_audit.add_argument("--jd", help="Target job description text or file path")
+    p_audit.add_argument("--jd", help="Target job description text, file path, or live URL")
     p_audit.set_defaults(func=cmd_audit)
+
+    # diff
+    p_diff = subparsers.add_parser("diff", help="Compute structural AST diff between two resumes")
+    p_diff.add_argument("v1", help="First resume file path (.tex or .json)")
+    p_diff.add_argument("v2", help="Second resume file path (.tex or .json)")
+    p_diff.add_argument("--json", action="store_true", help="Output machine-readable JSON diff")
+    p_diff.add_argument("--no-color", action="store_true", help="Disable ANSI terminal colors")
+    p_diff.set_defaults(func=cmd_diff)
+
+    # letter
+    p_letter = subparsers.add_parser("letter", help="Synthesize, export, or compile tailored single-page cover letters")
+    letter_sub = p_letter.add_subparsers(dest="letter_cmd", required=True)
+
+    let_create = letter_sub.add_parser("create", help="Create a tailored cover letter from resume")
+    let_create.add_argument("input", help="Base resume path (.tex or .json)")
+    let_create.add_argument("-c", "--company", default="Target Company", help="Target company name")
+    let_create.add_argument("-r", "--role", default="Software Engineer", help="Target role title")
+    let_create.add_argument("--recipient", default="", help="Hiring manager or team name")
+    let_create.add_argument("--city", default="", help="Company city/location")
+    let_create.add_argument("-t", "--template", default="cern", help="Template typography style")
+    let_create.add_argument("-o", "--output", help="Output file path (.json, .tex, .pdf, .html)")
+    let_create.set_defaults(func=cmd_letter)
+
+    let_compile = letter_sub.add_parser("compile", help="Compile cover letter to single-page PDF")
+    let_compile.add_argument("input", help="Cover letter JSON or base resume file")
+    let_compile.add_argument("-c", "--company", default="Target Company", help="Company name (if synthesizing from resume)")
+    let_compile.add_argument("-r", "--role", default="Software Engineer", help="Role title (if synthesizing from resume)")
+    let_compile.add_argument("-t", "--template", default="cern", help="Template typography style")
+    let_compile.add_argument("-o", "--output", default="cover_letter.pdf", help="Output PDF path")
+    let_compile.set_defaults(func=cmd_letter)
+
+    let_export = letter_sub.add_parser("export", help="Export cover letter to LaTeX, HTML, or JSON")
+    let_export.add_argument("input", help="Cover letter JSON or base resume file")
+    let_export.add_argument("-f", "--format", choices=["tex", "latex", "html", "json", "txt"], default="tex")
+    let_export.add_argument("-t", "--template", default="cern", help="Template typography style")
+    let_export.add_argument("-c", "--company", default="Target Company", help="Company name (if synthesizing from resume)")
+    let_export.add_argument("-r", "--role", default="Software Engineer", help="Role title (if synthesizing from resume)")
+    let_export.add_argument("-o", "--output", help="Output file path (stdout if omitted)")
+    let_export.set_defaults(func=cmd_letter)
+
+    # completion
+    p_comp = subparsers.add_parser("completion", help="Generate shell autocompletion script (bash, zsh, fish)")
+    p_comp.add_argument("shell", choices=["bash", "zsh", "fish"], default="bash", nargs="?", help="Shell type (default: bash)")
+    p_comp.set_defaults(func=cmd_completion)
 
     # serve
     p_serve = subparsers.add_parser("serve", help="Launch interactive in-house Web Studio (Reactive Resume style)")

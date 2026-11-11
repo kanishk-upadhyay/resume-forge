@@ -92,6 +92,49 @@ class TestCLI(unittest.TestCase):
                 out = fake_out.getvalue()
                 self.assertIn("KANISHK UPADHYAY", out)
 
+    def test_cli_diff_command(self):
+        json_file = str(Path(__file__).parent.parent / "examples" / "resume.json")
+        with patch.object(sys, 'argv', ["resume-forge", "diff", self.tex_file, json_file, "--no-color"]):
+            with patch('sys.stdout', new=StringIO()) as fake_out:
+                main()
+                out = fake_out.getvalue()
+                self.assertIn("STRUCTURAL AST COMPARISON", out)
+                self.assertIn("ATS Score Delta", out)
+
+    def test_cli_letter_command(self):
+        with patch.object(sys, 'argv', ["resume-forge", "letter", "create", self.tex_file, "-c", "Google", "-r", "Staff Engineer", "-t", "harvard"]):
+            with patch('sys.stdout', new=StringIO()) as fake_out:
+                main()
+                out = fake_out.getvalue()
+                self.assertIn("Google", out)
+                self.assertIn("Staff Engineer", out)
+
+    def test_cli_completion_command(self):
+        for shell in ["bash", "zsh", "fish"]:
+            with patch.object(sys, 'argv', ["resume-forge", "completion", shell]):
+                with patch('sys.stdout', new=StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue()
+                    self.assertIn("resume-forge", out)
+                    self.assertIn("harvard", out)
+
+    def test_cli_compile_image(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_png = Path(tmpdir) / "resume_img.png"
+            with patch.object(sys, 'argv', ["resume-forge", "compile", self.tex_file, "-f", "png", "--dpi", "150", "-o", str(out_png)]):
+                with patch('sys.stdout', new=StringIO()):
+                    main()
+            self.assertTrue(out_png.exists())
+            self.assertGreater(out_png.stat().st_size, 5000)
+
+    def test_cli_compile_all_templates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.object(sys, 'argv', ["resume-forge", "compile", self.tex_file, "--all-templates", "-o", tmpdir]):
+                with patch('sys.stdout', new=StringIO()):
+                    main()
+            compiled_files = list(Path(tmpdir).glob("*.pdf"))
+            self.assertEqual(len(compiled_files), 7, f"Expected 7 template PDFs, got {compiled_files}")
+
 
     def test_cli_nonexistent_file_handling(self):
         with patch.object(sys, 'argv', ["resume-forge", "parse", "nonexistent_file_12345.tex"]):

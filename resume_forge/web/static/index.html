@@ -38,6 +38,7 @@
         </select>
         <input type="file" id="inp-upload-file" accept=".tex,.json" style="display: none;">
         <button id="btn-upload-file" class="btn btn-secondary">📂 Upload</button>
+        <button id="btn-cover-letter" class="btn btn-secondary" title="Synthesize matching 1-page cover letter">✉️ Letter</button>
         <button id="btn-compile-pdf" class="btn btn-primary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="18"></line><line x1="15" y1="15" x2="12" y2="18"></line></svg>
           Compile PDF
@@ -45,6 +46,7 @@
         <button id="btn-export-latex" class="btn btn-secondary">Export .tex</button>
         <button id="btn-export-json" class="btn btn-secondary">JSON Resume</button>
         <button id="btn-copy-ats" class="btn btn-secondary">Copy ATS</button>
+        <button id="btn-toggle-theme" class="btn btn-secondary" title="Toggle Light/Dark Mode" style="padding: 6px 10px;">🌙</button>
       </div>
     </header>
 
@@ -238,7 +240,11 @@
           <div id="tab-ats" class="tab-pane">
             <div class="section-card">
               <h3 class="card-title">Target Job Description (ATS Matcher)</h3>
-              <textarea id="jd-input" rows="5" placeholder="Paste job description text here (e.g. CERN Software Engineer, Fullstack, C, Python, React, Vue, Linux)..."></textarea>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="jd-url-input" placeholder="Paste live posting URL (Greenhouse, Lever, Ashby, etc.)..." style="flex: 1; font-size: 12px; padding: 6px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+                <button id="btn-fetch-jd-url" class="btn btn-sm btn-secondary" style="white-space: nowrap;">⚡ Fetch URL</button>
+              </div>
+              <textarea id="jd-input" rows="5" placeholder="Or paste raw job description text here (e.g. Distributed systems engineer with Go, Kubernetes, C++, Linux)..."></textarea>
               <button id="btn-run-audit" class="btn btn-sm btn-primary" style="margin-top: 8px;">Run ATS & Keyword Audit</button>
             </div>
 

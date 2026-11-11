@@ -14,6 +14,9 @@ from ..core.exporter import ResumeExporter
 from ..core.compiler import ResumeCompiler
 from ..core.ats import ATSAnalyzer
 from ..core.schema import ResumeData
+from ..core.letter import CoverLetterData
+from ..core.diff import ResumeDiffEngine
+from ..core.fetcher import fetch_job_description
 from ..templates import TemplateRegistry
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -55,6 +58,12 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_compile_pdf(req_data)
         elif parsed_url.path == "/api/audit":
             self._handle_audit(req_data)
+        elif parsed_url.path == "/api/fetch-jd":
+            self._handle_fetch_jd(req_data)
+        elif parsed_url.path == "/api/cover-letter":
+            self._handle_cover_letter(req_data)
+        elif parsed_url.path == "/api/diff":
+            self._handle_diff(req_data)
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -124,6 +133,42 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
         analyzer = ATSAnalyzer(data)
         report = analyzer.analyze(job_description=jd)
         self._send_json(report)
+
+    def _handle_fetch_jd(self, req_data: Dict[str, Any]):
+        url = req_data.get("url", "").strip()
+        if not url:
+            self._send_json({"error": "No URL provided"}, 400)
+            return
+        try:
+            text = fetch_job_description(url)
+            self._send_json({"text": text, "length": len(text)})
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
+
+    def _handle_cover_letter(self, req_data: Dict[str, Any]):
+        resume_dict = req_data.get("resume", {})
+        company = req_data.get("company", "Target Company")
+        role = req_data.get("role", "Software Engineer")
+        template = req_data.get("template", "cern")
+        data = ResumeData.from_dict(resume_dict)
+        letter_data = CoverLetterData.from_resume(data, company=company, role=role)
+        tmpl = TemplateRegistry.get(template)
+        tex = tmpl.render_cover_letter_latex(letter_data)
+        html = tmpl.render_cover_letter_html(letter_data)
+        self._send_json({
+            "data": letter_data.to_dict(),
+            "latex": tex,
+            "html": html,
+            "template": template
+        })
+
+    def _handle_diff(self, req_data: Dict[str, Any]):
+        r1_dict = req_data.get("old_resume", {})
+        r2_dict = req_data.get("new_resume", {})
+        r1 = ResumeData.from_dict(r1_dict)
+        r2 = ResumeData.from_dict(r2_dict)
+        diff_res = ResumeDiffEngine.diff(r1, r2)
+        self._send_json(diff_res.to_dict())
 
     def _handle_compile_pdf(self, req_data: Dict[str, Any]):
         resume_dict = req_data.get("resume", {})
