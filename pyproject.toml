@@ -23,3 +23,10 @@ classifiers = [
 
 [project.scripts]
 resume-forge = "resume_forge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["resume_forge*"]
+
+[tool.setuptools.package-data]
+resume_forge = ["templates/*", "web/static/*"]

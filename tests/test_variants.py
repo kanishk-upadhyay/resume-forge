@@ -50,6 +50,19 @@ class TestVariantManager(unittest.TestCase):
         self.assertTrue(out_pdf.exists())
         self.assertGreater(out_pdf.stat().st_size, 1000)
 
+    def test_find_base_dir_from_subdirectory(self):
+        """Verifies VariantManager discovers variants/ from nested subdirectories."""
+        sub = Path(self.tmpdir.name) / "nested" / "sub"
+        sub.mkdir(parents=True)
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(sub)
+            vm_sub = VariantManager()
+            self.assertEqual(vm_sub.variants_dir.resolve(), self.vm.variants_dir.resolve())
+        finally:
+            os.chdir(old_cwd)
+
 
 if __name__ == "__main__":
     unittest.main()

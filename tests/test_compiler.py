@@ -65,6 +65,26 @@ class TestResumeCompiler(unittest.TestCase):
             self.assertGreater(pages_no_fit, 1, "Without auto-fit, 10 jobs should spill onto page 2.")
             self.assertEqual(pages_fit, 1, "With auto-fit, content must be squeezed onto exactly 1 page.")
 
+    def test_concurrent_compilation_profile_isolation(self):
+        """Verifies multiple threads can compile simultaneously without Chrome SingletonLock collisions."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _compile_task(idx):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_pdf = Path(tmpdir) / f"thread_{idx}.pdf"
+                ok = self.compiler.compile_resume(
+                    data=self.data,
+                    output_pdf_path=str(out_pdf),
+                    font_size_pt=10.0,
+                    margin_in=0.4
+                )
+                return ok and out_pdf.exists() and out_pdf.stat().st_size > 1000
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            results = list(pool.map(_compile_task, range(3)))
+
+        self.assertTrue(all(results), f"All concurrent jobs should succeed, got {results}")
+
 
 if __name__ == "__main__":
     unittest.main()

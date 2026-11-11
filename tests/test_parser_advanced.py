@@ -19,6 +19,12 @@ class TestAdvancedParser(unittest.TestCase):
         cleaned = clean_latex(raw_dashes)
         self.assertEqual(cleaned, "Dates: 2023—2024 – Present Location")
 
+        raw_symbols = r"P99 latency $\le$ 15\mu s \quad jitter \pm 2ms \qquad throughput \neq 0"
+        cleaned_symbols = clean_latex(raw_symbols)
+        self.assertIn("15µs", cleaned_symbols)
+        self.assertIn("±", cleaned_symbols)
+        self.assertIn("≠", cleaned_symbols)
+
     def test_jakes_resume_template(self):
         jakes_tex = r"""
         \documentclass[letterpaper,11pt]{article}

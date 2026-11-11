@@ -13,9 +13,19 @@ class VariantManager:
     """Manages tailored resume variants (e.g. cern_fullstack, systems_lowlevel)."""
 
     def __init__(self, base_dir: Optional[str] = None):
-        self.base_dir = Path(base_dir).resolve() if base_dir else Path.cwd()
+        self.base_dir = self._find_base_dir(base_dir)
         self.variants_dir = self.base_dir / "variants"
         self.variants_dir.mkdir(parents=True, exist_ok=True)
+
+    def _find_base_dir(self, base_dir: Optional[str] = None) -> Path:
+        """Finds base directory containing 'variants/', searching upward from cwd if not specified."""
+        if base_dir:
+            return Path(base_dir).resolve()
+        cwd = Path.cwd().resolve()
+        for p in [cwd] + list(cwd.parents):
+            if (p / "variants").is_dir():
+                return p
+        return cwd
 
     def list_variants(self) -> List[Dict[str, str]]:
         """Lists all available resume variants (.tex or .json)."""

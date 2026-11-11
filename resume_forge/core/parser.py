@@ -77,7 +77,10 @@ def clean_latex(text: str) -> str:
     text = re.sub(r'\$\s*\\times\s*\$|\\times\b', '×', text)
     text = re.sub(r'\$\s*\\(?:le|leq)\s*\$|\\(?:le|leq)\b', '≤', text)
     text = re.sub(r'\$\s*\\(?:ge|geq)\s*\$|\\(?:ge|geq)\b', '≥', text)
+    text = re.sub(r'\$\s*\\(?:ne|neq)\s*\$|\\(?:ne|neq)\b', '≠', text)
     text = re.sub(r'\$\s*\\approx\s*\$|\\approx\b', '≈', text)
+    text = re.sub(r'\$\s*\\mu\s*s\b|\\mu\s*s\b', 'µs', text)
+    text = re.sub(r'\$\s*\\mu\b|\\mu\b', 'µ', text)
     text = re.sub(r'\\textasciitilde\{\}?|\\textasciitilde\b', '~', text)
     text = re.sub(r'\\textasciicircum\{\}?|\\textasciicircum\b', '^', text)
     text = re.sub(r'\\textbar\{\}?|\\textbar\b', '|', text)
@@ -119,6 +122,7 @@ def clean_latex(text: str) -> str:
     text = re.sub(r'\\!', '', text)
     text = re.sub(r'\\-', '', text)
     text = re.sub(r'\\/', '', text)
+    text = re.sub(r'\\(?:quad|qquad|enspace|enskip|space)(?:\{\})?\b', ' ', text)
     
     # Remove remaining backslash commands (e.g. \vspace{...}, \hspace{...}, \hfill)
     text = re.sub(r'\\[a-zA-Z]+(?:\*|\b)(?:\[[^\]]*\])?(?:\{[^{}]*\})?', '', text)

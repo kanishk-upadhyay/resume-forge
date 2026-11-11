@@ -109,6 +109,38 @@ class TestJobHunter(unittest.TestCase):
             results = hunter.hunt()
             self.assertEqual(results, [])
 
+    @patch("urllib.request.urlopen")
+    def test_grad_year_cohort_range_filtering(self, mock_urlopen):
+        """Verifies graduation year matching works with ranges and description mentions."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "jobs": [
+                {
+                    "title": "Software Development Engineer Intern",
+                    "id_icims": "1001",
+                    "job_path": "/en/jobs/1001",
+                    "location": "US",
+                    "description": "Must be graduating between 2025 and 2027.",
+                    "basic_qualifications": ""
+                },
+                {
+                    "title": "Software Development Engineer Intern - Class of 2024",
+                    "id_icims": "1002",
+                    "job_path": "/en/jobs/1002",
+                    "location": "US",
+                    "description": "Targeting 2024 graduates only.",
+                    "basic_qualifications": ""
+                }
+            ]
+        }).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        # Search targeting 2026 cohort
+        hunter = JobHunter(company="amazon", grad_year=2026)
+        results = hunter.hunt()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, "1001")
+
 
 if __name__ == "__main__":
     unittest.main()

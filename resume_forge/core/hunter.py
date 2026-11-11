@@ -437,11 +437,26 @@ class JobHunter:
                     limit=self.limit
                 )
                 for posting in results:
-                    # Filter by grad year if title explicitly mentions different cohort year
+                    # Filter by grad year if title or description explicitly mentions cohort/graduation years
                     if self.grad_year:
-                        grad_match = re.search(r'\b(?:class of|graduating|cohort|batch|intern|graduate)\s*(?:in\s*)?(202[0-9])\b', posting.title, re.IGNORECASE)
-                        if grad_match and grad_match.group(1) != str(self.grad_year):
-                            continue
+                        cohort_text = f"{posting.title} {posting.description[:800]}"
+                        cohort_mentions = re.findall(
+                            r'\b(?:class of|graduating|cohort|batch|graduation(?:\s+date)?)\s*(?:in\s*|between\s*|:\s*)?(202[0-9])(?:\s*(?:-|–|to|and|or)\s*(202[0-9]))?\b',
+                            cohort_text,
+                            re.IGNORECASE
+                        )
+                        if cohort_mentions:
+                            supported_years = set()
+                            for y1, y2 in cohort_mentions:
+                                if y1:
+                                    supported_years.add(int(y1))
+                                if y2:
+                                    supported_years.add(int(y2))
+                                    if y1:
+                                        for yr in range(int(y1), int(y2) + 1):
+                                            supported_years.add(yr)
+                            if supported_years and self.grad_year not in supported_years:
+                                continue
 
                     # ATS scoring and keyword alignment
                     if base_resume_data and posting.description:

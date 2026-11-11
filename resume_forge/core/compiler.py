@@ -63,24 +63,25 @@ class ResumeCompiler:
             temp_html = f.name
 
         try:
-            cmd = [
-                self.chrome_bin,
-                "--headless=new",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--user-data-dir=/tmp/chrome-resume-forge",
-                "--crash-dumps-dir=/tmp",
-                "--no-pdf-header-footer",
-                f"--print-to-pdf={str(output_path)}",
-                f"file://{temp_html}"
-            ]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
-            if not output_path.exists() or output_path.stat().st_size == 0:
-                # Try fallback flag without =new
-                cmd[1] = "--headless"
+            with tempfile.TemporaryDirectory(prefix="chrome-user-data-") as user_data_dir:
+                cmd = [
+                    self.chrome_bin,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    f"--user-data-dir={user_data_dir}",
+                    f"--crash-dumps-dir={user_data_dir}",
+                    "--no-pdf-header-footer",
+                    f"--print-to-pdf={str(output_path)}",
+                    f"file://{temp_html}"
+                ]
                 res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
-                
-            return output_path.exists() and output_path.stat().st_size > 0
+                if not output_path.exists() or output_path.stat().st_size == 0:
+                    # Try fallback flag without =new
+                    cmd[1] = "--headless"
+                    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+                    
+                return output_path.exists() and output_path.stat().st_size > 0
         finally:
             if os.path.exists(temp_html):
                 os.remove(temp_html)

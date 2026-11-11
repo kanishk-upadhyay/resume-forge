@@ -7,6 +7,7 @@ on:
       - '**.tex'
       - '**.json'
       - 'resume_forge/**'
+      - 'variants/**'
   workflow_dispatch:
 
 env:
@@ -14,7 +15,7 @@ env:
 
 jobs:
   build-and-release:
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -24,18 +25,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile CERN Resume to PDF
+      - name: Compile All Resume Variants to Single-Page PDFs
         run: |
-          ./bin/resume-forge compile examples/kanishk_cern_fullstack_resume.tex -o kanishk_cern_resume.pdf
+          mkdir -p output/compiled_resumes
+          # Compile canonical example
+          ./bin/resume-forge compile examples/kanishk_cern_fullstack_resume.tex -o output/compiled_resumes/kanishk_cern_fullstack_resume.pdf
 
-      - name: Compile Systems Variant
-        run: |
-          ./bin/resume-forge variant compile systems_lowlevel -o kanishk_systems_resume.pdf
+          # Compile all company-tailored variants in variants/
+          for var_tex in variants/*.tex; do
+            if [ -f "$var_tex" ]; then
+              base=$(basename "$var_tex" .tex)
+              echo "Compiling variant: $base"
+              ./bin/resume-forge compile "$var_tex" -o "output/compiled_resumes/kanishk_${base}.pdf"
+            fi
+          done
 
       - name: Upload PDF Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: compiled-resumes
-          path: |
-            kanishk_cern_resume.pdf
-            kanishk_systems_resume.pdf
+          path: output/compiled_resumes/*.pdf
