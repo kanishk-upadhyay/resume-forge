@@ -156,6 +156,32 @@ class TestStudioServer(unittest.TestCase):
         self.assertEqual(len(resp_data["resume"]["work"]), 1)
         self.assertEqual(resp_data["resume"]["work"][0]["start_date"], "1943")
 
+    def test_get_templates_endpoint(self):
+        handler = DummyStudioHandler()
+        handler.path = "/api/templates"
+        handler.do_GET()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertIn("templates", resp_data)
+        tmpl_names = [t["name"] for t in resp_data["templates"]]
+        self.assertIn("harvard", tmpl_names)
+        self.assertIn("jakes", tmpl_names)
+        self.assertIn("minimalist", tmpl_names)
+        self.assertIn("quant", tmpl_names)
+        self.assertIn("awesome", tmpl_names)
+        self.assertIn("academic", tmpl_names)
+
+    def test_get_sample_harvard_endpoint(self):
+        handler = DummyStudioHandler()
+        handler.path = "/api/sample?template=harvard"
+        handler.do_GET()
+
+        self.assertEqual(handler._response_status, 200)
+        resp_data = json.loads(handler.wfile.getvalue().decode("utf-8"))
+        self.assertIn("latex", resp_data)
+        self.assertIn("harvard", resp_data["latex"].lower())
+
     def test_404_not_found(self):
         handler = DummyStudioHandler()
         handler.path = "/api/nonexistent_endpoint"

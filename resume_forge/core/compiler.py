@@ -15,17 +15,39 @@ class ResumeCompiler:
     """Compiles resumes to PDF using headless Chrome or local Tectonic/pdflatex."""
 
     CHROME_PATHS = [
+        # macOS system paths
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "/Applications/Arc.app/Contents/MacOS/Arc",
+        # macOS user-level paths
+        os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        os.path.expanduser("~/Applications/Chromium.app/Contents/MacOS/Chromium"),
+        os.path.expanduser("~/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"),
+        os.path.expanduser("~/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+        # Linux standard paths & binaries
         "/usr/bin/google-chrome",
         "/usr/bin/google-chrome-stable",
         "/usr/bin/chromium",
         "/usr/bin/chromium-browser",
+        "/usr/bin/brave-browser",
+        "/usr/bin/microsoft-edge",
         "google-chrome",
+        "google-chrome-stable",
         "chromium",
+        "chromium-browser",
+        "brave-browser",
+        "brave",
+        "microsoft-edge",
+        "msedge",
         "chrome",
+        # Windows standard paths
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
     ]
 
     def __init__(self):
@@ -123,14 +145,24 @@ class ResumeCompiler:
 
     @staticmethod
     def get_pdf_page_count(pdf_path: str) -> int:
-        """Reads generated PDF file and returns exact page count."""
+        """Reads generated PDF file and returns exact page count with stream fallback."""
         p = Path(pdf_path)
         if not p.exists():
             return 0
         try:
             data = p.read_bytes()
+            # 1. Direct Page object count
             pages = re.findall(rb'/Type\s*/Page\b', data)
-            return len(pages)
+            if pages:
+                return len(pages)
+            # 2. Check Pages catalog /Count entry (for PDFs with compressed /ObjStm)
+            count_match = re.search(rb'/Type\s*/Pages\b[^>]*?/Count\s+(\d+)', data)
+            if count_match:
+                return int(count_match.group(1))
+            count_match2 = re.search(rb'/Count\s+(\d+)[^>]*?/Type\s*/Pages\b', data)
+            if count_match2:
+                return int(count_match2.group(1))
+            return 0
         except Exception:
             return 0
 
@@ -138,9 +170,10 @@ class ResumeCompiler:
         self,
         data: ResumeData,
         output_pdf_path: str,
-        font_size_pt: float = 10.0,
-        line_height: float = 1.25,
-        margin_in: float = 0.4,
+        template: str = "cern",
+        font_size_pt: Optional[float] = None,
+        line_height: Optional[float] = None,
+        margin_in: Optional[float] = None,
         auto_fit: bool = True
     ) -> bool:
         """Generates single-page PDF directly using the in-house Chrome engine.
@@ -149,8 +182,9 @@ class ResumeCompiler:
         font size and margins to enforce a strict single-page fit.
         """
         exporter = ResumeExporter(data)
-        html = exporter.to_html(font_size_pt=font_size_pt, line_height=line_height, margin_in=margin_in)
-        success = self.compile_html_to_pdf(html, output_pdf_path, margin_in=margin_in)
+        html = exporter.to_html(template=template, font_size_pt=font_size_pt, line_height=line_height, margin_in=margin_in)
+        effective_margin = margin_in if margin_in is not None else 0.4
+        success = self.compile_html_to_pdf(html, output_pdf_path, margin_in=effective_margin)
         if not success:
             return False
 
@@ -165,7 +199,7 @@ class ResumeCompiler:
                     (8.0, 1.05, 0.25)
                 ]
                 for f_pt, lh, m_in in tiers:
-                    html_squeeze = exporter.to_html(font_size_pt=f_pt, line_height=lh, margin_in=m_in)
+                    html_squeeze = exporter.to_html(template=template, font_size_pt=f_pt, line_height=lh, margin_in=m_in)
                     self.compile_html_to_pdf(html_squeeze, output_pdf_path, margin_in=m_in)
                     if self.get_pdf_page_count(output_pdf_path) <= 1:
                         break

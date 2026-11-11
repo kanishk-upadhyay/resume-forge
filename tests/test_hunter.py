@@ -7,7 +7,7 @@ from pathlib import Path
 
 from resume_forge.core.hunter import (
     JobHunter, JobPosting, AmazonProvider, SmartRecruitersProvider,
-    GreenhouseProvider, LeverProvider, _clean_html
+    GreenhouseProvider, LeverProvider, AshbyProvider, WorkdayProvider, _clean_html
 )
 
 
@@ -46,6 +46,8 @@ class TestJobHunter(unittest.TestCase):
         self.assertIn("smartrecruiters", names)
         self.assertIn("greenhouse", names)
         self.assertIn("lever", names)
+        self.assertIn("ashby", names)
+        self.assertIn("workday", names)
 
         hunter_amazon = JobHunter(company="amazon")
         amazon_providers = hunter_amazon.get_providers()
@@ -56,6 +58,16 @@ class TestJobHunter(unittest.TestCase):
         cern_providers = hunter_cern.get_providers()
         self.assertEqual(len(cern_providers), 1)
         self.assertEqual(cern_providers[0].name, "smartrecruiters")
+
+        hunter_linear = JobHunter(company="linear")
+        linear_providers = hunter_linear.get_providers()
+        self.assertEqual(len(linear_providers), 1)
+        self.assertEqual(linear_providers[0].name, "ashby")
+
+        hunter_redhat = JobHunter(company="redhat")
+        redhat_providers = hunter_redhat.get_providers()
+        self.assertEqual(len(redhat_providers), 1)
+        self.assertEqual(redhat_providers[0].name, "workday")
 
     @patch("urllib.request.urlopen")
     def test_amazon_provider_mock(self, mock_urlopen):
@@ -101,6 +113,59 @@ class TestJobHunter(unittest.TestCase):
         self.assertEqual(len(jobs), 1)
         self.assertEqual(jobs[0].company, "CERN")
         self.assertIn("744000160223950", jobs[0].apply_url)
+
+    @patch("urllib.request.urlopen")
+    def test_ashby_provider_mock(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "jobs": [
+                {
+                    "id": "ashby-uuid-1234",
+                    "title": "Software Engineer, Infrastructure",
+                    "location": "San Francisco, CA",
+                    "department": "Engineering",
+                    "isRemote": True,
+                    "jobUrl": "https://jobs.ashbyhq.com/linear/ashby-uuid-1234",
+                    "applyUrl": "https://jobs.ashbyhq.com/linear/ashby-uuid-1234/application",
+                    "descriptionPlain": "Build scalable distributed database clusters."
+                }
+            ]
+        }).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        provider = AshbyProvider("linear", "Linear")
+        jobs = provider.fetch_jobs(role="infrastructure", location="remote", limit=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].id, "ashby-uuid-1234")
+        self.assertEqual(jobs[0].company, "Linear")
+        self.assertEqual(jobs[0].ats_type, "ashby")
+        self.assertIn("application", jobs[0].apply_url)
+
+    @patch("urllib.request.urlopen")
+    def test_workday_provider_mock(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "total": 1,
+            "jobPostings": [
+                {
+                    "title": "Software Engineer - OpenShift",
+                    "externalPath": "/job/R-100200-engineer",
+                    "locationsText": "Remote, US",
+                    "remoteType": "Remote",
+                    "bulletFields": ["R-100200"]
+                }
+            ]
+        }).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        provider = WorkdayProvider("redhat", company_name="Red Hat")
+        jobs = provider.fetch_jobs(role="engineer", location="US", limit=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].id, "R-100200")
+        self.assertEqual(jobs[0].company, "Red Hat")
+        self.assertEqual(jobs[0].ats_type, "workday")
+        self.assertIn("redhat.wd5.myworkdayjobs.com", jobs[0].url)
+        self.assertIn("/apply", jobs[0].apply_url)
 
     def test_network_failure_graceful_handling(self):
         hunter = JobHunter(company="amazon")

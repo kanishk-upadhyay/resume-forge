@@ -1,0 +1,120 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.40in]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+% Roboto or Sans-Serif font setup
+\usepackage[scaled=0.94]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Awesome-CV Color Palette
+\definecolor{awesome-emerald}{HTML}{008080}
+\definecolor{awesome-dark}{HTML}{222222}
+\definecolor{awesome-gray}{HTML}{5D5D5D}
+\definecolor{awesome-lightgray}{HTML}{999999}
+
+% Section Style with Accent Bar
+\newcommand{\cvsection}[1]{%
+  \vspace{5pt}
+  {\fontsize{11}{13}\bfseries\color{awesome-emerald}\uppercase{#1}}
+  \vspace{-2pt}
+  {\color{awesome-lightgray}\hrule height 0.6pt}
+  \vspace{3pt}
+}
+
+% List item spacing
+\setlist[itemize]{leftmargin=1.1em, itemsep=-1.5pt, topsep=1pt, parsep=0pt, partopsep=0pt}
+
+\begin{document}
+
+%----------HEADER----------
+\begin{center}
+  {\fontsize{24}{28}\selectfont \color{awesome-gray} Kanishk \textbf{\color{awesome-emerald} Upadhyay}} \\[3pt]
+  {\small \color{awesome-dark} Bhopal, India $\cdot$ +91 7772034062 $\cdot$ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} $\cdot$ \href{https://kanishk.pages.dev/treasures}{kanishk.pages.dev/treasures} $\cdot$ \href{https://github.com/kanishk-upadhyay}{github.com/kanishk-upadhyay} $\cdot$ \href{https://gitlab.com/kanishk0}{gitlab.com/kanishk0} $\cdot$ \href{https://linkedin.com/in/kanishk22}{linkedin.com/in/kanishk22}}
+\end{center}
+\vspace{-4pt}
+
+\cvsection{Experience}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Software Developer Intern} & {\color{awesome-gray}\small 06/2025 -- 12/2025} \\
+  \textit{\color{awesome-emerald} OZ Media} & {\color{awesome-gray}\small Remote} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.
+  \item Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.
+  \item Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35\%.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Web Developer Intern} & {\color{awesome-gray}\small 01/2026 -- 06/2026} \\
+  \textit{\color{awesome-emerald} Digigocare} & {\color{awesome-gray}\small Bhopal, India} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.
+  \item Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation.
+\end{itemize}\vspace{2pt}
+
+\cvsection{Projects}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Pokédex Web Application} | \textit{Vanilla JavaScript, Service Workers, REST API, Surge} & {\color{awesome-gray}\small 04/2024 -- 05/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.
+  \item Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Sector 7 Marketplace} | \textit{React, Redux Toolkit, Node.js, Vite} & {\color{awesome-gray}\small 10/2024 -- 11/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} SmartSpend Expense Tracker} | \textit{TypeScript, Python, SQLite, OCR} & {\color{awesome-gray}\small 01/2025 -- 03/2025} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability.
+\end{itemize}\vspace{2pt}
+
+\cvsection{Open-Source & Leadership}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} GitLab (Core Upstream Contributor)} & {\color{awesome-emerald} \textit{Vue.js Frontend Architecture}} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.
+  \item Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Yatoro (Apple Music TUI Player)} & {\color{awesome-emerald} \textit{Swift Systems \& Concurrency Patching}} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.
+  \item Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts.
+\end{itemize}\vspace{2pt}
+
+\cvsection{Skills}
+\begin{itemize}
+  \item \textbf{Languages}: Python, C, Swift, JavaScript, TypeScript, HTML/CSS, SQL
+  \item \textbf{Frameworks \& Libraries}: React, Vue.js, Redux / Redux Toolkit, Flask, Django, Vite
+  \item \textbf{Systems \& DevOps}: Linux, Git, GitLab CI/CD, Nginx, Docker, Android Architecture, Cloudflare Pages
+  \item \textbf{Databases \& Protocols}: MySQL, SQLite, PostgreSQL, REST APIs, JSON-RPC, WebSocket
+\end{itemize}\vspace{2pt}
+
+\cvsection{Education}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{\color{awesome-dark} Barkatullah University} & {\color{awesome-gray}\small 08/2023 -- 06/2027} \\
+  \textit{\color{awesome-emerald} Bachelor of Engineering in Computer Science} & {\color{awesome-gray}\small } \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Core Coursework: Data Structures \& Algorithms, Operating Systems, Database Management Systems, Computer Networks.
+  \item Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.
+\end{itemize}\vspace{2pt}
+
+\end{document}

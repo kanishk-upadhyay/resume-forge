@@ -25,11 +25,13 @@ let currentResume = {
 };
 
 let currentZoom = 1.0;
+let currentTemplate = "cern";
 
 document.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
   setupSliders();
   setupActionButtons();
+  setupTemplateSelector();
   setupZoom();
   await loadInitialSample();
 });
@@ -74,6 +76,32 @@ function setupSliders() {
   });
 }
 
+function setupTemplateSelector() {
+  const selTmpl = document.getElementById("sel-template");
+  const selTmplDesign = document.getElementById("sel-template-design");
+
+  function onTemplateChange(tmpl) {
+    currentTemplate = tmpl;
+    if (selTmpl) selTmpl.value = tmpl;
+    if (selTmplDesign) selTmplDesign.value = tmpl;
+
+    // Apply template preset class to paper
+    const paper = document.getElementById("resume-paper");
+    if (paper) {
+      paper.className = `paper template-${tmpl}`;
+    }
+
+    renderPreview();
+  }
+
+  if (selTmpl) {
+    selTmpl.addEventListener("change", (e) => onTemplateChange(e.target.value));
+  }
+  if (selTmplDesign) {
+    selTmplDesign.addEventListener("change", (e) => onTemplateChange(e.target.value));
+  }
+}
+
 function setupActionButtons() {
   // Compile PDF
   document.getElementById("btn-compile-pdf").addEventListener("click", async () => {
@@ -88,6 +116,7 @@ function setupActionButtons() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           resume: currentResume,
+          template: currentTemplate,
           font_size: parseFloat(document.getElementById("range-font-size").value),
           line_height: parseFloat(document.getElementById("range-line-height").value),
           margin: parseFloat(document.getElementById("range-margin").value)
@@ -97,7 +126,7 @@ function setupActionButtons() {
       if (data.success && data.pdf_url) {
         const a = document.createElement("a");
         a.href = data.pdf_url + "?t=" + Date.now();
-        a.download = `${currentResume.basics.name.replace(/\s+/g, "_")}_Resume.pdf`;
+        a.download = `${currentResume.basics.name.replace(/\s+/g, "_")}_${currentTemplate}_Resume.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -120,13 +149,13 @@ function setupActionButtons() {
       const resp = await fetch("/api/generate-tex", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: currentResume })
+        body: JSON.stringify({ resume: currentResume, template: currentTemplate })
       });
       const data = await resp.json();
-      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_resume.tex`, data.latex);
+      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_${currentTemplate}.tex`, data.latex);
     } catch (err) {
       const tex = window.ClientResumeEngine ? window.ClientResumeEngine.generateLatex(currentResume) : "";
-      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_resume.tex`, tex);
+      downloadFile(`${currentResume.basics.name.replace(/\s+/g, "_")}_${currentTemplate}.tex`, tex);
     }
   });
 
@@ -701,6 +730,7 @@ function renderPreview() {
   const lineHeight = parseFloat(document.getElementById("range-line-height").value);
   const margin = parseFloat(document.getElementById("range-margin").value);
 
+  paper.className = `paper template-${currentTemplate}`;
   paper.style.fontSize = `${fontSize}pt`;
   paper.style.lineHeight = lineHeight;
   paper.style.padding = `${margin}in`;
@@ -715,12 +745,23 @@ function renderPreview() {
     contactParts.push(`<a href="${p.url}" target="_blank">${p.url.replace(/^https?:\/\//, '')}</a>`);
   });
 
-  const safeName = (b.name || "Candidate Name").replace(/[{}]/g, '').trim();
+  const rawName = (b.name || "Candidate Name").replace(/[{}]/g, '').trim();
+  let nameDisplay = rawName;
+  if (currentTemplate === "harvard" || currentTemplate === "quant") {
+    nameDisplay = rawName.toUpperCase();
+  } else if (currentTemplate === "awesome") {
+    const parts = rawName.split(" ");
+    const first = parts[0] || "";
+    const last = parts.slice(1).join(" ");
+    nameDisplay = `<span class="first">${first}</span> <span class="last">${last}</span>`;
+  }
+
+  const divider = (currentTemplate === "harvard" || currentTemplate === "minimalist" || currentTemplate === "awesome" || currentTemplate === "academic") ? " &middot; " : " | ";
 
   let html = `
     <header>
-      <h1>${safeName}</h1>
-      <div class="contact-line">${contactParts.join(" | ")}</div>
+      <h1>${nameDisplay}</h1>
+      <div class="contact-line">${contactParts.join(divider)}</div>
     </header>
   `;
 

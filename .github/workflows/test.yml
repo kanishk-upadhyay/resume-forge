@@ -11,14 +11,18 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Run Unit Tests
         run: |
@@ -31,3 +35,7 @@ jobs:
       - name: Verify ATS Audit
         run: |
           ./bin/resume-forge audit examples/kanishk_cern_fullstack_resume.tex
+
+      - name: Verify ATS Hunt CLI
+        run: |
+          ./bin/resume-forge hunt --help

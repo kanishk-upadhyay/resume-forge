@@ -577,6 +577,97 @@ input[type="range"] {
   font-weight: 700;
 }
 
+/* Template Specific Visual Presets */
+.paper.template-harvard {
+  font-family: 'Times New Roman', 'Times', 'Lora', Georgia, serif;
+}
+.paper.template-harvard .section-header {
+  border-bottom: 1.5px solid #000;
+  letter-spacing: 0.5px;
+}
+.paper.template-harvard .contact-line a {
+  color: #000;
+  text-decoration: underline;
+}
+
+.paper.template-jakes {
+  font-family: 'Helvetica Neue', Helvetica, 'Inter', Arial, sans-serif;
+}
+.paper.template-jakes .section-header {
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid #222;
+}
+.paper.template-jakes .contact-line a {
+  color: #0b57d0;
+}
+
+.paper.template-minimalist {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #0f172a;
+}
+.paper.template-minimalist header {
+  text-align: left;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 4px;
+}
+.paper.template-minimalist h1 {
+  text-align: left;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+}
+.paper.template-minimalist .contact-line {
+  text-align: left;
+  color: #475569;
+}
+.paper.template-minimalist .contact-line a {
+  color: #2563eb;
+}
+.paper.template-minimalist .section-header {
+  border-bottom: 1px solid #cbd5e1;
+  letter-spacing: 1.2px;
+  color: #0f172a;
+}
+
+.paper.template-quant {
+  font-family: 'EB Garamond', Garamond, 'Times New Roman', serif;
+}
+.paper.template-quant h1 {
+  font-size: 17pt;
+  margin-bottom: 1px;
+}
+.paper.template-quant .section-header {
+  border-bottom: 1px solid #000;
+  letter-spacing: 0.4px;
+  margin-top: 5px;
+  margin-bottom: 2px;
+}
+
+.paper.template-awesome {
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+.paper.template-awesome h1 {
+  font-weight: 300;
+}
+.paper.template-awesome h1 .last {
+  font-weight: 700;
+  color: #008080;
+}
+.paper.template-awesome .section-header {
+  color: #008080;
+  border-bottom: 1px solid #ccc;
+}
+.paper.template-awesome .contact-line a {
+  color: #008080;
+}
+
+.paper.template-academic {
+  font-family: 'Latin Modern Roman', 'Computer Modern', 'Times New Roman', serif;
+}
+.paper.template-academic .section-header {
+  font-variant: small-caps;
+  border-bottom: 1px solid #111;
+}
+
 /* Print Rules for In-Browser Single-Page PDF Generation */
 @media print {
   @page {

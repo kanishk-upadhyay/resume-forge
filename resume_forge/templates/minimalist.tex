@@ -1,0 +1,115 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.42in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+% Modern Clean Typography
+\usepackage[scaled=0.94]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Slate Color Palette
+\definecolor{slate900}{RGB}{15,23,42}
+\definecolor{slate600}{RGB}{71,85,105}
+\definecolor{slate400}{RGB}{148,163,184}
+\definecolor{blue600}{RGB}{37,99,235}
+
+% Modern Section Styling
+\titleformat{\section}
+  {\vspace{-3pt}\fontsize{11}{13}\bfseries\color{slate900}\uppercase}
+  {}{0em}{}[\vspace{1pt}\color{slate400}\titlerule\vspace{2pt}]
+\titlespacing*{\section}{0pt}{6pt}{4pt}
+
+% List item spacing
+\setlist[itemize]{leftmargin=1.1em, itemsep=-1pt, topsep=1pt, parsep=0pt, partopsep=0pt}
+
+\begin{document}
+
+%----------HEADER----------
+{\LARGE \textbf{\color{slate900} Kanishk Upadhyay}} \\[2pt]
+{\small \color{slate600} Bhopal, India $\cdot$ +91 7772034062 $\cdot$ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} $\cdot$ \href{https://kanishk.pages.dev/treasures}{kanishk.pages.dev/treasures} $\cdot$ \href{https://github.com/kanishk-upadhyay}{github.com/kanishk-upadhyay} $\cdot$ \href{https://gitlab.com/kanishk0}{gitlab.com/kanishk0} $\cdot$ \href{https://linkedin.com/in/kanishk22}{linkedin.com/in/kanishk22}}
+\vspace{-2pt}
+
+\section{Experience}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Software Developer Intern} $\cdot$ \textbf{OZ Media} & {\color{slate600}\small 06/2025 -- 12/2025} \\
+  {\color{slate600}\small Remote} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.
+  \item Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.
+  \item Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35\%.
+\end{itemize}\vspace{3pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Web Developer Intern} $\cdot$ \textbf{Digigocare} & {\color{slate600}\small 01/2026 -- 06/2026} \\
+  {\color{slate600}\small Bhopal, India} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.
+  \item Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation.
+\end{itemize}\vspace{3pt}
+
+\section{Projects}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Pokédex Web Application} {\color{slate600}\footnotesize\texttt{ [Vanilla JavaScript, Service Workers, REST API, Surge]}} & {\color{slate600}\small 04/2024 -- 05/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.
+  \item Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters.
+\end{itemize}\vspace{3pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Sector 7 Marketplace} {\color{slate600}\footnotesize\texttt{ [React, Redux Toolkit, Node.js, Vite]}} & {\color{slate600}\small 10/2024 -- 11/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards.
+\end{itemize}\vspace{3pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{SmartSpend Expense Tracker} {\color{slate600}\footnotesize\texttt{ [TypeScript, Python, SQLite, OCR]}} & {\color{slate600}\small 01/2025 -- 03/2025} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability.
+\end{itemize}\vspace{3pt}
+
+\section{Open-Source}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{GitLab (Core Upstream Contributor)} $\cdot$ {\color{slate600} Vue.js Frontend Architecture} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.
+  \item Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards.
+\end{itemize}\vspace{3pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Yatoro (Apple Music TUI Player)} $\cdot$ {\color{slate600} Swift Systems \& Concurrency Patching} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.
+  \item Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts.
+\end{itemize}\vspace{3pt}
+
+\section{Technical Stack}
+\begin{itemize}
+  \item \textbf{Languages}: Python, C, Swift, JavaScript, TypeScript, HTML/CSS, SQL
+  \item \textbf{Frameworks \& Libraries}: React, Vue.js, Redux / Redux Toolkit, Flask, Django, Vite
+  \item \textbf{Systems \& DevOps}: Linux, Git, GitLab CI/CD, Nginx, Docker, Android Architecture, Cloudflare Pages
+  \item \textbf{Databases \& Protocols}: MySQL, SQLite, PostgreSQL, REST APIs, JSON-RPC, WebSocket
+\end{itemize}\vspace{3pt}
+
+\section{Education}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Barkatullah University} & {\color{slate600}\small 08/2023 -- 06/2027} \\
+  {\color{slate600} Bachelor of Engineering in Computer Science} $\cdot$  & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Core Coursework: Data Structures \& Algorithms, Operating Systems, Database Management Systems, Computer Networks.
+  \item Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.
+\end{itemize}\vspace{3pt}
+
+\end{document}

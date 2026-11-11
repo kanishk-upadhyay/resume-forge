@@ -1,0 +1,109 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=0.45in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\pagestyle{empty}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Academic Section Heading Style
+\titleformat{\section}
+  {\vspace{-3pt}\scshape\large\bfseries}
+  {}{0em}{}[\vspace{1pt}\hrule height 0.5pt\vspace{3pt}]
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+
+% Numbered publication list spacing
+\setlist[enumerate]{leftmargin=1.8em, itemsep=1pt, topsep=1pt, parsep=0pt, partopsep=0pt}
+\setlist[itemize]{leftmargin=1.2em, itemsep=-1pt, topsep=1pt, parsep=0pt, partopsep=0pt}
+
+\begin{document}
+
+%----------HEADER----------
+\begin{center}
+  {\LARGE \textbf{Kanishk Upadhyay}} \\[2pt]
+  {\small Bhopal, India $\cdot$ +91 7772034062 $\cdot$ \href{mailto:kanishkupadhyay22@gmail.com}{kanishkupadhyay22@gmail.com} $\cdot$ \href{https://kanishk.pages.dev/treasures}{kanishk.pages.dev/treasures} $\cdot$ \href{https://github.com/kanishk-upadhyay}{github.com/kanishk-upadhyay} $\cdot$ \href{https://gitlab.com/kanishk0}{gitlab.com/kanishk0} $\cdot$ \href{https://linkedin.com/in/kanishk22}{linkedin.com/in/kanishk22}}
+\end{center}
+\vspace{-4pt}
+
+\section{Education}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Barkatullah University} & \textit{08/2023 -- 06/2027} \\
+  \textit{Bachelor of Engineering in Computer Science} in  & \textit{} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Core Coursework: Data Structures \& Algorithms, Operating Systems, Database Management Systems, Computer Networks.
+  \item Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.
+\end{itemize}\vspace{2pt}
+
+\section{Research \& Professional Appointments}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Software Developer Intern}, \textit{OZ Media} & \textit{06/2025 -- 12/2025} \\
+  \textit{Remote} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.
+  \item Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.
+  \item Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35\%.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Web Developer Intern}, \textit{Digigocare} & \textit{01/2026 -- 06/2026} \\
+  \textit{Bhopal, India} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.
+  \item Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation.
+\end{itemize}\vspace{2pt}
+
+\section{Selected Research Systems \& Artifacts}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Pokédex Web Application} | \textit{Vanilla JavaScript, Service Workers, REST API, Surge} & \textit{04/2024 -- 05/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.
+  \item Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Sector 7 Marketplace} | \textit{React, Redux Toolkit, Node.js, Vite} & \textit{10/2024 -- 11/2024} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{SmartSpend Expense Tracker} | \textit{TypeScript, Python, SQLite, OCR} & \textit{01/2025 -- 03/2025} \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability.
+\end{itemize}\vspace{2pt}
+
+\section{Scientific Open-Source Contributions}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{GitLab (Core Upstream Contributor)} $\cdot$ \textit{Vue.js Frontend Architecture} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.
+  \item Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards.
+\end{itemize}\vspace{2pt}
+\noindent\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr}
+  \textbf{Yatoro (Apple Music TUI Player)} $\cdot$ \textit{Swift Systems \& Concurrency Patching} & \\
+\end{tabular*}\vspace{-2pt}
+\begin{itemize}
+  \item Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.
+  \item Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts.
+\end{itemize}\vspace{2pt}
+
+\section{Technical Methodologies \& Tooling}
+\begin{itemize}
+  \item \textbf{Languages}: Python, C, Swift, JavaScript, TypeScript, HTML/CSS, SQL
+  \item \textbf{Frameworks \& Libraries}: React, Vue.js, Redux / Redux Toolkit, Flask, Django, Vite
+  \item \textbf{Systems \& DevOps}: Linux, Git, GitLab CI/CD, Nginx, Docker, Android Architecture, Cloudflare Pages
+  \item \textbf{Databases \& Protocols}: MySQL, SQLite, PostgreSQL, REST APIs, JSON-RPC, WebSocket
+\end{itemize}\vspace{2pt}
+
+\end{document}

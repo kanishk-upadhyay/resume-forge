@@ -64,6 +64,35 @@ class TestCLI(unittest.TestCase):
             self.assertTrue(out_pdf.exists())
             self.assertGreater(out_pdf.stat().st_size, 1000)
 
+    def test_cli_template_commands(self):
+        # template list
+        with patch.object(sys, 'argv', ["resume-forge", "template", "list"]):
+            with patch('sys.stdout', new=StringIO()) as fake_out:
+                main()
+                out = fake_out.getvalue()
+                self.assertIn("harvard", out)
+                self.assertIn("jakes", out)
+                self.assertIn("minimalist", out)
+                self.assertIn("quant", out)
+                self.assertIn("awesome", out)
+                self.assertIn("academic", out)
+
+        # template info
+        with patch.object(sys, 'argv', ["resume-forge", "template", "info", "harvard"]):
+            with patch('sys.stdout', new=StringIO()) as fake_out:
+                main()
+                out = fake_out.getvalue()
+                self.assertIn("Harvard Classic", out)
+                self.assertIn("Ivy League", out)
+
+        # export with template
+        with patch.object(sys, 'argv', ["resume-forge", "export", self.tex_file, "-f", "tex", "-t", "harvard"]):
+            with patch('sys.stdout', new=StringIO()) as fake_out:
+                main()
+                out = fake_out.getvalue()
+                self.assertIn("KANISHK UPADHYAY", out)
+
+
     def test_cli_nonexistent_file_handling(self):
         with patch.object(sys, 'argv', ["resume-forge", "parse", "nonexistent_file_12345.tex"]):
             with patch('sys.stderr', new=StringIO()):

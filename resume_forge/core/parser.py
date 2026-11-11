@@ -96,6 +96,13 @@ def clean_latex(text: str) -> str:
     while re.search(href_pattern, text):
         text = re.sub(href_pattern, r'\2', text)
     text = re.sub(r'\\url\s*\{([^}]+)\}', r'\1', text)
+
+    # 4.5 Strip color and font-sizing commands
+    text = re.sub(r'\\fontsize\s*\{[^}]*\}\s*\{[^}]*\}\s*(?:\\selectfont)?', '', text)
+    text = re.sub(r'\\selectfont\b', '', text)
+    text = re.sub(r'\\color(?:\[[^\]]*\])?\{[^}]*\}', '', text)
+    text = re.sub(r'\\textcolor(?:\[[^\]]*\])?\{[^}]*\}\{((?:[^{}]|\{[^{}]*\})*)\}', r'\1', text)
+    text = re.sub(r'\\definecolor\{[^}]*\}\{[^}]*\}\{[^}]*\}', '', text)
     
     # 5. Iteratively peel text styling macros (textbf, textit, emph, underline, etc.)
     macro_pattern = r'\\(?:textbf|textit|emph|textsc|texttt|underline|small|footnotesize|large|Large|Huge|scshape)\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
@@ -267,25 +274,25 @@ class LatexResumeParser:
 
         for title, body in sections:
             lower_title = title.lower()
-            if any(k in lower_title for k in ("summary", "objective", "about me", "profile", "professional summary")):
+            if any(k in lower_title for k in ("summary", "objective", "about me", "profile", "professional summary", "about", "research interest")):
                 clean_body = clean_latex(body).strip()
                 if clean_body and not basics.summary:
                     basics.summary = clean_body
             elif any(k in lower_title for k in ("open source", "open-source", "open_source", "contributions", "community")):
                 open_source.extend(self._parse_open_source(body))
-            elif any(k in lower_title for k in ("experience", "employment", "work", "history")):
+            elif any(k in lower_title for k in ("experience", "employment", "work", "history", "appointment")):
                 work.extend(self._parse_work(body))
             elif any(k in lower_title for k in ("education", "academics", "qualifications")):
                 education.extend(self._parse_education(body))
-            elif any(k in lower_title for k in ("project", "work samples")):
+            elif any(k in lower_title for k in ("project", "work samples", "systems", "artifacts")):
                 projects.extend(self._parse_projects(body))
-            elif any(k in lower_title for k in ("skill", "competenc", "technologies", "tech stack")):
+            elif any(k in lower_title for k in ("skill", "competenc", "technologies", "tech stack", "technical stack", "stack", "methodolog", "tooling")):
                 skills.extend(self._parse_skills(body))
             elif any(k in lower_title for k in ("certificate", "certification", "licenses")):
                 certificates.extend(self._parse_certificates(body))
-            elif any(k in lower_title for k in ("award", "honor", "achievement")):
+            elif any(k in lower_title for k in ("award", "honor", "achievement", "grant", "fellowship")):
                 awards.extend(self._parse_awards(body))
-            elif any(k in lower_title for k in ("publication", "paper", "research")):
+            elif any(k in lower_title for k in ("publication", "paper", "preprint")):
                 publications.extend(self._parse_publications(body))
             elif any(k in lower_title for k in ("language", "spoken languages")):
                 languages.extend(self._parse_languages(body))
@@ -349,6 +356,18 @@ class LatexResumeParser:
                     if n1 or n2:
                         basics.name = f"{n1} {n2}".strip()
 
+        # {\Huge ...} or {\huge ...} or {\fontsize{...}{...} ...}
+        if not basics.name:
+            m_huge = re.search(r'\{\s*(?:\\(?:Huge|huge|LARGE|Large)\b|\\fontsize\{)', header_text)
+            if m_huge:
+                args, _ = extract_braced_args(header_text, m_huge.start(), max_args=1)
+                if args:
+                    inner_line = re.split(r'\\\\|\n', args[0])[0]
+                    candidate = clean_latex(inner_line).strip("{} \t\r\n")
+                    candidate = re.sub(r'[{}]', '', candidate).strip()
+                    if candidate and len(candidate.split()) <= 6:
+                        basics.name = candidate
+
         # \textbf{...} containing \Huge, \huge, \LARGE, \Large, or \scshape
         if not basics.name:
             for m in re.finditer(r'\\textbf\b', header_text):
@@ -362,18 +381,6 @@ class LatexResumeParser:
                         if candidate and len(candidate.split()) <= 6:
                             basics.name = candidate
                             break
-
-        # {\Huge ...} or {\huge ...}
-        if not basics.name:
-            m_huge = re.search(r'\{\s*\\(?:Huge|huge|LARGE|Large)\b', header_text)
-            if m_huge:
-                args, _ = extract_braced_args(header_text, m_huge.start(), max_args=1)
-                if args:
-                    inner_line = re.split(r'\\\\|\n', args[0])[0]
-                    candidate = clean_latex(inner_line).strip("{} \t\r\n")
-                    candidate = re.sub(r'[{}]', '', candidate).strip()
-                    if candidate and len(candidate.split()) <= 6:
-                        basics.name = candidate
 
         # \Huge \textbf{...} or \huge \textbf{...}
         if not basics.name:

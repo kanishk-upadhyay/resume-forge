@@ -69,9 +69,11 @@ def cmd_compile(args):
             return
 
     # Default robust engine: In-house headless Chrome
+    template = getattr(args, "template", "cern")
     success = compiler.compile_resume(
         data=resume_data,
         output_pdf_path=out_pdf,
+        template=template,
         font_size_pt=args.font_size,
         line_height=args.line_height,
         margin_in=args.margin,
@@ -93,14 +95,15 @@ def cmd_export(args):
     """Exports resume into specified format (tex, json, html, md)."""
     resume_data = load_resume(args.input)
     exporter = ResumeExporter(resume_data)
+    template = getattr(args, "template", "cern")
 
     fmt = args.format.lower()
     if fmt == "tex" or fmt == "latex":
-        out_content = exporter.to_latex()
+        out_content = exporter.to_latex(template=template)
     elif fmt == "json":
         out_content = resume_data.to_json(indent=2)
     elif fmt == "html":
-        out_content = exporter.to_html()
+        out_content = exporter.to_html(template=template)
     elif fmt == "md" or fmt == "markdown":
         out_content = exporter.to_markdown()
     else:
@@ -309,6 +312,33 @@ def cmd_hunt(args):
         print("")
 
 
+def cmd_template(args):
+    """Lists and inspects available resume presentation templates."""
+    from .templates import TemplateRegistry
+    sub = args.template_cmd
+
+    if sub == "list":
+        templates = TemplateRegistry.list_templates()
+        print("\n" + "=" * 70)
+        print("  RESUME FORGE - AVAILABLE TEMPLATES")
+        print("=" * 70)
+        for t in templates:
+            print(f"• {t['name']:<12} [{t['category']}] - {t['display_name']}")
+            print(f"    Description: {t['description']}")
+            print(f"    Target:      {', '.join(t['target_roles'][:3])}")
+            print(f"    Defaults:    font={t['default_font_size']}pt | line={t['default_line_height']} | margin={t['default_margin']}in")
+            print("")
+        print("Use `-t <name>` with `compile` or `export` to select a template.")
+        print("=" * 70 + "\n")
+    elif sub == "info":
+        tmpl = TemplateRegistry.get(args.name)
+        print(f"\nTemplate:     {tmpl.name} ({tmpl.display_name})")
+        print(f"Category:     {tmpl.category}")
+        print(f"Description:  {tmpl.description}")
+        print(f"Target Roles: {', '.join(tmpl.target_roles)}")
+        print(f"Defaults:     font_size={tmpl.default_font_size}pt, line_height={tmpl.default_line_height}, margin={tmpl.default_margin}in\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="resume-forge",
@@ -326,10 +356,11 @@ def main():
     p_compile = subparsers.add_parser("compile", help="Compile .tex or .json to single-page PDF in-house")
     p_compile.add_argument("input", help="Path to input .tex or .json resume")
     p_compile.add_argument("-o", "--output", default="resume.pdf", help="Output PDF file path (default: resume.pdf)")
+    p_compile.add_argument("-t", "--template", default="cern", help="Template style: cern, harvard, jakes, minimalist, quant, awesome, academic (default: cern)")
     p_compile.add_argument("--method", choices=["auto", "chrome", "tectonic"], default="auto", help="Compiler engine")
-    p_compile.add_argument("--font-size", type=float, default=10.0, help="Base font size in pt (default: 10.0)")
-    p_compile.add_argument("--line-height", type=float, default=1.25, help="Line height multiplier (default: 1.25)")
-    p_compile.add_argument("--margin", type=float, default=0.4, help="Page margin in inches (default: 0.4)")
+    p_compile.add_argument("--font-size", type=float, default=None, help="Base font size in pt (default: template default)")
+    p_compile.add_argument("--line-height", type=float, default=None, help="Line height multiplier (default: template default)")
+    p_compile.add_argument("--margin", type=float, default=None, help="Page margin in inches (default: template default)")
     p_compile.add_argument("--no-auto-fit", action="store_true", help="Disable automatic single-page font/margin compression")
     p_compile.set_defaults(func=cmd_compile)
 
@@ -337,6 +368,7 @@ def main():
     p_export = subparsers.add_parser("export", help="Convert resume between formats (tex, json, html, md)")
     p_export.add_argument("input", help="Input file path")
     p_export.add_argument("-f", "--format", choices=["tex", "latex", "json", "html", "md", "markdown"], required=True)
+    p_export.add_argument("-t", "--template", default="cern", help="Template style: cern, harvard, jakes, minimalist, quant, awesome, academic (default: cern)")
     p_export.add_argument("-o", "--output", help="Output file path (stdout if omitted)")
     p_export.set_defaults(func=cmd_export)
 
@@ -385,9 +417,9 @@ def main():
     p_tailor.set_defaults(func=cmd_tailor)
 
     # hunt
-    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Greenhouse, Lever, SmartRecruiters, Amazon) for live jobs")
-    p_hunt.add_argument("-p", "--provider", choices=["all", "greenhouse", "lever", "smartrecruiters", "amazon"], default="all", help="ATS platform provider (default: all)")
-    p_hunt.add_argument("-c", "--company", default="", help="Target company or board identifier (e.g. 'canonical', 'figma', 'stripe', 'amazon', 'cern')")
+    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Greenhouse, Lever, SmartRecruiters, Amazon, Ashby, Workday) for live jobs")
+    p_hunt.add_argument("-p", "--provider", choices=["all", "greenhouse", "lever", "smartrecruiters", "amazon", "ashby", "workday"], default="all", help="ATS platform provider (default: all)")
+    p_hunt.add_argument("-c", "--company", default="", help="Target company or board identifier (e.g. 'canonical', 'linear', 'ramp', 'redhat', 'cern', 'amazon')")
     p_hunt.add_argument("-r", "--role", default="", help="Role/title keyword filter (e.g. 'software engineer', 'intern', 'backend')")
     p_hunt.add_argument("-l", "--location", default="", help="Target location / country filter (e.g. 'Remote', 'US', 'Germany', 'India')")
     p_hunt.add_argument("-g", "--grad-year", type=int, default=None, help="Target graduation cohort year filter (e.g. 2026, 2027)")
@@ -397,6 +429,17 @@ def main():
     p_hunt.add_argument("-o", "--output-dir", default="output/hunt", help="Output directory for compiled PDFs and reports (default: output/hunt)")
     p_hunt.add_argument("--json", action="store_true", help="Output results in JSON format")
     p_hunt.set_defaults(func=cmd_hunt)
+
+    # template
+    p_tmpl = subparsers.add_parser("template", help="List and inspect available resume presentation templates")
+    tmpl_sub = p_tmpl.add_subparsers(dest="template_cmd", required=True)
+
+    tmpl_list = tmpl_sub.add_parser("list", help="List all available templates")
+    tmpl_list.set_defaults(func=cmd_template)
+
+    tmpl_info = tmpl_sub.add_parser("info", help="Show details of a specific template")
+    tmpl_info.add_argument("name", help="Template name (e.g. harvard, jakes, minimalist, quant, awesome, academic, cern)")
+    tmpl_info.set_defaults(func=cmd_template)
 
     args = parser.parse_args()
     args.func(args)

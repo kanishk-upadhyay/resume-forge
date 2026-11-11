@@ -340,6 +340,141 @@ class LeverProvider(BaseATSProvider):
         return postings
 
 
+class AshbyProvider(BaseATSProvider):
+    """Ashby HQ Job Board JSON API provider."""
+    name = "ashby"
+
+    def __init__(self, board_token: str, company_name: Optional[str] = None):
+        self.board_token = board_token
+        self.company_name = company_name or board_token.title()
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        url = f"https://api.ashbyhq.com/posting-api/job-board/{self.board_token}"
+        req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                jobs = data.get("jobs", [])
+                for job in jobs:
+                    title = job.get("title", "")
+                    job_id = str(job.get("id", ""))
+                    primary_loc = job.get("location", "")
+                    is_remote = job.get("isRemote", False)
+                    sec_locs = [s.get("location", "") for s in job.get("secondaryLocations", []) if isinstance(s, dict)]
+                    all_locs = [primary_loc] + sec_locs
+                    if is_remote:
+                        all_locs.append("Remote")
+                    loc_str = primary_loc or (", ".join(sec_locs) if sec_locs else ("Remote" if is_remote else "Unspecified"))
+                    dept = job.get("department", "") or job.get("team", "")
+
+                    # Check location filter
+                    loc_search_corpus = " ".join(all_locs)
+                    if not _match_location(loc_search_corpus, location):
+                        continue
+
+                    # Check role match against title or department
+                    if role and not (_match_role(title, role) or _match_role(dept, role)):
+                        continue
+
+                    job_url = job.get("jobUrl") or f"https://jobs.ashbyhq.com/{self.board_token}/{job_id}"
+                    apply_url = job.get("applyUrl") or f"{job_url}/application"
+                    desc = job.get("descriptionPlain") or _clean_html(job.get("descriptionHtml", ""))
+
+                    postings.append(JobPosting(
+                        id=job_id,
+                        title=title,
+                        company=self.company_name,
+                        ats_type="ashby",
+                        location=loc_str,
+                        url=job_url,
+                        apply_url=apply_url,
+                        description=desc
+                    ))
+                    if len(postings) >= limit:
+                        break
+        except Exception:
+            pass
+        return postings
+
+
+class WorkdayProvider(BaseATSProvider):
+    """Workday CXS REST API provider."""
+    name = "workday"
+
+    def __init__(self,
+                 company_id: str,
+                 host: Optional[str] = None,
+                 site: Optional[str] = None,
+                 company_name: Optional[str] = None):
+        self.company_id = company_id.lower().strip()
+        if self.company_id == "redhat":
+            self.host = host or "redhat.wd5.myworkdayjobs.com"
+            self.site = site or "Jobs"
+            self.company_name = company_name or "Red Hat"
+        else:
+            self.host = host or f"{self.company_id}.wd5.myworkdayjobs.com"
+            self.site = site or "Jobs"
+            self.company_name = company_name or self.company_id.replace("_", " ").title()
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        url = f"https://{self.host}/wday/cxs/{self.company_id}/{self.site}/jobs"
+        payload = json.dumps({
+            "appliedFacets": {},
+            "limit": min(50, limit * 4),
+            "offset": 0,
+            "searchText": role or ""
+        }).encode("utf-8")
+
+        headers = dict(DEFAULT_HEADERS)
+        headers["Content-Type"] = "application/json"
+
+        req = urllib.request.Request(url, data=payload, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                for item in data.get("jobPostings", []):
+                    title = item.get("title", "")
+                    external_path = item.get("externalPath", "")
+                    loc_desc = item.get("locationsText", "")
+                    remote_type = item.get("remoteType", "")
+                    loc_full = f"{loc_desc} {remote_type}".strip() or "Unspecified"
+
+                    bullet_fields = item.get("bulletFields", [])
+                    job_id = bullet_fields[0] if bullet_fields else ""
+                    if not job_id and external_path:
+                        m = re.search(r'_([A-Z0-9\-]+)$', external_path)
+                        job_id = m.group(1) if m else "WD"
+
+                    # Check location filter
+                    if not _match_location(loc_full, location):
+                        continue
+
+                    # Check role match
+                    if not _match_role(title, role):
+                        continue
+
+                    direct_url = f"https://{self.host}/en-US/{self.site}{external_path}"
+                    apply_url = f"{direct_url}/apply"
+
+                    postings.append(JobPosting(
+                        id=job_id,
+                        title=title,
+                        company=self.company_name,
+                        ats_type="workday",
+                        location=loc_full,
+                        url=direct_url,
+                        apply_url=apply_url,
+                        description=f"{title} - {loc_full}"
+                    ))
+                    if len(postings) >= limit:
+                        break
+        except Exception:
+            pass
+        return postings
+
+
 class JobHunter:
     """Orchestrates multi-ATS polling, keyword scoring, and single-page resume pairing."""
 
@@ -347,6 +482,8 @@ class JobHunter:
     POPULAR_GREENHOUSE_BOARDS = ["canonical", "figma", "stripe", "databricks"]
     POPULAR_LEVER_BOARDS = ["palantir"]
     POPULAR_SMARTRECRUITERS_BOARDS = ["cern"]
+    POPULAR_ASHBY_BOARDS = ["linear", "ramp", "cursor", "supabase", "modal"]
+    POPULAR_WORKDAY_BOARDS = ["redhat"]
 
     def __init__(self,
                  company: str = "",
@@ -388,6 +525,10 @@ class JobHunter:
                 providers.append(SmartRecruitersProvider(comp, comp.upper()))
             elif p_target == "lever" or comp in self.POPULAR_LEVER_BOARDS:
                 providers.append(LeverProvider(comp, comp.capitalize()))
+            elif p_target == "ashby" or comp in self.POPULAR_ASHBY_BOARDS:
+                providers.append(AshbyProvider(comp, comp.capitalize()))
+            elif p_target == "workday" or comp in self.POPULAR_WORKDAY_BOARDS:
+                providers.append(WorkdayProvider(comp))
             elif p_target == "greenhouse" or comp in self.POPULAR_GREENHOUSE_BOARDS:
                 providers.append(GreenhouseProvider(comp, comp.capitalize()))
             else:
@@ -410,6 +551,14 @@ class JobHunter:
         if p_target in ("all", "lever"):
             for l in self.POPULAR_LEVER_BOARDS:
                 providers.append(LeverProvider(l))
+
+        if p_target in ("all", "ashby"):
+            for a in self.POPULAR_ASHBY_BOARDS:
+                providers.append(AshbyProvider(a, a.capitalize()))
+
+        if p_target in ("all", "workday"):
+            for w in self.POPULAR_WORKDAY_BOARDS:
+                providers.append(WorkdayProvider(w))
 
         return providers
 

@@ -40,6 +40,12 @@ jobs:
             fi
           done
 
+          # Compile all 7 canonical presentation templates
+          for tmpl in cern harvard jakes minimalist quant awesome academic; do
+            echo "Compiling template: $tmpl"
+            ./bin/resume-forge compile examples/kanishk_cern_fullstack_resume.tex -t "$tmpl" -o "output/compiled_resumes/kanishk_template_${tmpl}.pdf"
+          done
+
       - name: Upload PDF Artifacts
         uses: actions/upload-artifact@v7
         with:

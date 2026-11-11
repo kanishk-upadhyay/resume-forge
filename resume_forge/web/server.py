@@ -14,6 +14,7 @@ from ..core.exporter import ResumeExporter
 from ..core.compiler import ResumeCompiler
 from ..core.ats import ATSAnalyzer
 from ..core.schema import ResumeData
+from ..templates import TemplateRegistry
 
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -28,7 +29,11 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed_url = urllib.parse.urlparse(self.path)
         if parsed_url.path == "/api/sample":
-            self._handle_get_sample()
+            query_params = urllib.parse.parse_qs(parsed_url.query)
+            template_name = query_params.get("template", ["cern"])[0]
+            self._handle_get_sample(template_name)
+        elif parsed_url.path == "/api/templates":
+            self._send_json({"templates": TemplateRegistry.list_templates()})
         else:
             super().do_GET()
 
@@ -62,13 +67,17 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(resp_bytes)
 
-    def _handle_get_sample(self):
-        cern_sample = TEMPLATES_DIR / "cern_fullstack.tex"
-        if cern_sample.exists():
-            tex = cern_sample.read_text(encoding="utf-8")
+    def _handle_get_sample(self, template_name: str = "cern"):
+        tmpl = TemplateRegistry.get(template_name)
+        sample_path = TEMPLATES_DIR / f"{tmpl.name}.tex"
+        if not sample_path.exists():
+            sample_path = TEMPLATES_DIR / "cern_fullstack.tex"
+
+        if sample_path.exists():
+            tex = sample_path.read_text(encoding="utf-8")
             parser = LatexResumeParser(tex)
             data = parser.parse()
-            self._send_json({"latex": tex, "resume": data.to_dict()})
+            self._send_json({"latex": tex, "resume": data.to_dict(), "template": tmpl.name})
         else:
             self._send_json({"error": "Sample template not found"}, 404)
 
@@ -102,10 +111,11 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_generate_tex(self, req_data: Dict[str, Any]):
         resume_dict = req_data.get("resume", {})
+        template = req_data.get("template", "cern")
         data = ResumeData.from_dict(resume_dict)
         exporter = ResumeExporter(data)
-        tex = exporter.to_latex()
-        self._send_json({"latex": tex})
+        tex = exporter.to_latex(template=template)
+        self._send_json({"latex": tex, "template": template})
 
     def _handle_audit(self, req_data: Dict[str, Any]):
         resume_dict = req_data.get("resume", {})
@@ -117,6 +127,7 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_compile_pdf(self, req_data: Dict[str, Any]):
         resume_dict = req_data.get("resume", {})
+        template = req_data.get("template", "cern")
         data = ResumeData.from_dict(resume_dict)
         font_size = float(req_data.get("font_size", 10.0))
         line_height = float(req_data.get("line_height", 1.25))
@@ -127,6 +138,7 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
         success = compiler.compile_resume(
             data=data,
             output_pdf_path=str(output_pdf),
+            template=template,
             font_size_pt=font_size,
             line_height=line_height,
             margin_in=margin,
