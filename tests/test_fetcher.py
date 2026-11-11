@@ -47,7 +47,7 @@ class TestJobDescriptionFetcher(unittest.TestCase):
         self.assertIn("5+ years with Linux", cleaned)
         self.assertIn("Experience with C and Rust", cleaned)
 
-    @patch("urllib.request.urlopen")
+    @patch("resume_forge.core.fetcher.urllib.request.urlopen")
     def test_lever_api_mock(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = b'{"text": "Distributed Systems Engineer", "descriptionPlain": "Build large scale infra", "lists": [{"text": "Requirements", "content": "Linux, Kubernetes"}]}'
@@ -59,7 +59,7 @@ class TestJobDescriptionFetcher(unittest.TestCase):
         self.assertIn("Distributed Systems Engineer", res)
         self.assertIn("Linux, Kubernetes", res)
 
-    @patch("urllib.request.urlopen")
+    @patch("resume_forge.core.fetcher.urllib.request.urlopen")
     def test_greenhouse_api_mock(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = b'{"title": "Kernel Engineer", "content": "<p>Deep familiarity with eBPF, TCP/IP, and kernel modules.</p>"}'
@@ -70,6 +70,17 @@ class TestJobDescriptionFetcher(unittest.TestCase):
         self.assertIsNotNone(res)
         self.assertIn("Kernel Engineer", res)
         self.assertIn("eBPF", res)
+
+    @patch("resume_forge.core.fetcher.urllib.request.urlopen")
+    def test_generic_url_mock(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b'<html><body><h1>Platform Engineer</h1><p>Kubernetes and Go</p></body></html>'
+        mock_resp.__enter__.return_value = mock_resp
+        mock_urlopen.return_value = mock_resp
+
+        res = fetch_job_description("https://careers.google.com/jobs/123")
+        self.assertIn("Platform Engineer", res)
+        self.assertIn("Kubernetes and Go", res)
 
 
 if __name__ == "__main__":
