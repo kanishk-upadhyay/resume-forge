@@ -1,0 +1,66 @@
+{
+  "roles": [
+    "Software Engineer",
+    "Backend Engineer",
+    "Systems Engineer"
+  ],
+  "locations": [
+    "Remote",
+    "US",
+    "Europe",
+    "India"
+  ],
+  "seniority": "mid",
+  "min_experience_years": 2,
+  "max_experience_years": 5,
+  "grad_year": null,
+  "exclude_titles": [
+    "manager",
+    "director",
+    "sales",
+    "recruiter"
+  ],
+  "exclude_keywords": [
+    "security clearance",
+    "polygraph"
+  ],
+  "remote_only": false,
+  "base_resume_path": "examples/resume.tex",
+  "output_dir": "output/hunt",
+  "custom_boards": {
+    "greenhouse": [
+      "stripe",
+      "figma",
+      "datadog",
+      "airbnb"
+    ],
+    "lever": [
+      "palantir",
+      "spotify"
+    ],
+    "ashby": [
+      "linear",
+      "ramp",
+      "cursor"
+    ],
+    "smartrecruiters": [
+      "square",
+      "cern",
+      "boschgroup"
+    ],
+    "workday": [
+      {
+        "company": "nvidia",
+        "host": "nvidia.wd5.myworkdayjobs.com",
+        "site": "NVIDIAExternalCareerSite",
+        "name": "NVIDIA"
+      },
+      {
+        "company": "redhat",
+        "host": "redhat.wd5.myworkdayjobs.com",
+        "site": "Jobs",
+        "name": "Red Hat"
+      }
+    ]
+  }
+}

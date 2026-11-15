@@ -6,9 +6,10 @@ import json
 from pathlib import Path
 
 from resume_forge.core.hunter import (
-    JobHunter, JobPosting, AmazonProvider, SmartRecruitersProvider,
+    JobHunter, JobPosting, HunterPreferences, AmazonProvider, SmartRecruitersProvider,
     GreenhouseProvider, LeverProvider, AshbyProvider, WorkdayProvider,
-    AikyamProvider, HNHiringProvider, RSSFeedProvider, _clean_html
+    AikyamProvider, HNHiringProvider, RSSFeedProvider, _clean_html,
+    _match_seniority, _match_experience, _match_role
 )
 
 
@@ -282,6 +283,132 @@ class TestJobHunter(unittest.TestCase):
         self.assertEqual(jobs[0].title, "Backend Engineer Intern")
         self.assertEqual(jobs[0].company, "Example Board")
         self.assertEqual(jobs[0].ats_type, "rss")
+
+    def test_hunter_preferences_model_and_file_io(self):
+        """Verifies creating, serializing, saving, and restoring HunterPreferences profiles."""
+        import tempfile
+        prefs = HunterPreferences(
+            roles=["Platform Engineer", "Site Reliability Engineer"],
+            locations=["Remote", "US", "Germany"],
+            seniority="senior",
+            min_experience_years=5,
+            max_experience_years=10,
+            exclude_titles=["manager", "director"],
+            exclude_keywords=["clearance"],
+            custom_boards={
+                "greenhouse": ["stripe", "datadog"],
+                "workday": [{"company": "nvidia", "host": "nvidia.wd5.myworkdayjobs.com", "site": "NVIDIAExternalCareerSite"}]
+            }
+        )
+        d = prefs.to_dict()
+        self.assertEqual(d["seniority"], "senior")
+        self.assertEqual(d["min_experience_years"], 5)
+        self.assertIn("stripe", d["custom_boards"]["greenhouse"])
+
+        # Roundtrip JSON
+        json_str = prefs.to_json()
+        restored = HunterPreferences.from_json(json_str)
+        self.assertEqual(restored.roles, prefs.roles)
+        self.assertEqual(restored.min_experience_years, 5)
+
+        # File IO
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_path = Path(tmpdir) / "test_profile.json"
+            prefs.save_file(profile_path)
+            self.assertTrue(profile_path.exists())
+            loaded = HunterPreferences.load_file(profile_path)
+            self.assertEqual(loaded.seniority, "senior")
+            self.assertEqual(len(loaded.exclude_titles), 2)
+
+    def test_seniority_levels_filtering(self):
+        """Verifies configurable seniority filters prevent title mismatches."""
+        # Senior candidate search
+        self.assertTrue(_match_seniority("Senior Software Engineer", target_seniority="senior"))
+        self.assertTrue(_match_seniority("Staff Distributed Systems Engineer", target_seniority="senior"))
+        self.assertFalse(_match_seniority("Software Engineer Intern", target_seniority="senior"))
+        self.assertFalse(_match_seniority("Junior Frontend Developer", target_seniority="senior"))
+
+        # Intern / Student search
+        self.assertTrue(_match_seniority("Software Engineer Intern", target_seniority="intern"))
+        self.assertFalse(_match_seniority("Senior Software Engineer", target_seniority="intern"))
+        self.assertFalse(_match_seniority("Lead Architect", target_seniority="intern"))
+
+        # Mid level search
+        self.assertTrue(_match_seniority("Software Engineer II", target_seniority="mid"))
+        self.assertFalse(_match_seniority("Software Engineer Intern", target_seniority="mid"))
+
+    def test_experience_years_matching(self):
+        """Verifies min and max experience constraints filter job requirements."""
+        jd_junior = "Requirements: 1-2 years of experience building web apps."
+        jd_mid = "Requirements: 3-5 years of experience in distributed systems."
+        jd_senior = "Requirements: At least 7+ years of experience architecting large scale clusters."
+
+        # Junior filter (max 2 years)
+        self.assertTrue(_match_experience(jd_junior, max_exp=2))
+        self.assertFalse(_match_experience(jd_mid, max_exp=2))
+        self.assertFalse(_match_experience(jd_senior, max_exp=2))
+
+        # Senior filter (min 5 years)
+        self.assertFalse(_match_experience(jd_junior, min_exp=5))
+        self.assertFalse(_match_experience(jd_mid, min_exp=5))
+        self.assertTrue(_match_experience(jd_senior, min_exp=5))
+
+    def test_custom_boards_extension(self):
+        """Verifies custom ATS company boards can be plugged into JobHunter dynamically."""
+        custom_boards = {
+            "greenhouse": ["airbnb", "cloudflare"],
+            "workday": [
+                {"company": "nvidia", "host": "nvidia.wd5.myworkdayjobs.com", "site": "NVIDIAExternalCareerSite", "name": "NVIDIA"}
+            ]
+        }
+        hunter = JobHunter(custom_boards=custom_boards)
+        providers = hunter.get_providers()
+        co_names = [getattr(p, "company_id", None) or getattr(p, "board_token", None) or p.name for p in providers]
+        self.assertIn("airbnb", co_names)
+        self.assertIn("cloudflare", co_names)
+        self.assertIn("nvidia", co_names)
+
+        # Directly targeting custom company
+        hunter_nv = JobHunter(company="nvidia", custom_boards=custom_boards)
+        nv_prov = hunter_nv.get_providers()
+        self.assertEqual(len(nv_prov), 1)
+        self.assertEqual(nv_prov[0].company_name, "NVIDIA")
+        self.assertEqual(nv_prov[0].host, "nvidia.wd5.myworkdayjobs.com")
+
+    def test_title_and_keyword_exclusions(self):
+        """Verifies user-defined title and description exclusion filters."""
+        self.assertFalse(_match_role("Engineering Manager", role_query="engineer", exclude_titles=["manager"]))
+        self.assertTrue(_match_role("Software Engineer", role_query="engineer", exclude_titles=["manager"]))
+
+        # Keyword exclusions in hunt
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({
+                "jobs": [
+                    {
+                        "title": "Software Engineer",
+                        "id_icims": "2001",
+                        "job_path": "/jobs/2001",
+                        "location": "US",
+                        "description": "Must possess active Top Secret Polygraph clearance.",
+                        "basic_qualifications": ""
+                    },
+                    {
+                        "title": "Software Engineer",
+                        "id_icims": "2002",
+                        "job_path": "/jobs/2002",
+                        "location": "US",
+                        "description": "Build modern cloud microservices with Python and AWS.",
+                        "basic_qualifications": ""
+                    }
+                ]
+            }).encode("utf-8")
+            mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+            hunter = JobHunter(company="amazon", exclude_keywords=["polygraph", "clearance"])
+            postings = hunter.hunt()
+            self.assertEqual(len(postings), 1)
+            self.assertEqual(postings[0].id, "2002")
 
 
 if __name__ == "__main__":

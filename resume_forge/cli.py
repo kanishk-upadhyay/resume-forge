@@ -13,7 +13,7 @@ from .core.ats import ATSAnalyzer
 from .core.schema import ResumeData
 from .core.variants import VariantManager
 from .core.tailor import BulletTailor
-from .core.hunter import JobHunter
+from .core.hunter import JobHunter, HunterPreferences
 from .core.letter import CoverLetterData, CoverLetterRecipient
 from .core.diff import ResumeDiffEngine
 from .core.fetcher import fetch_job_description
@@ -333,6 +333,51 @@ def cmd_tailor(args):
 
 def cmd_hunt(args):
     """Directly queries official public ATS APIs for verified live openings and pairs with resumes."""
+    profile_path = getattr(args, "profile", None)
+    if profile_path and Path(profile_path).exists():
+        prefs = HunterPreferences.load_file(profile_path)
+    else:
+        prefs = HunterPreferences.load_default()
+
+    # Parse custom boards if passed
+    custom_boards = {}
+    boards_arg = getattr(args, "boards", "")
+    if boards_arg:
+        if Path(boards_arg).exists():
+            try:
+                custom_boards = json.loads(Path(boards_arg).read_text(encoding="utf-8"))
+            except Exception as e:
+                print(f"Warning: Failed to load boards JSON file: {e}", file=sys.stderr)
+        else:
+            try:
+                custom_boards = json.loads(boards_arg)
+            except Exception:
+                p_name = args.provider if args.provider != "all" else "greenhouse"
+                custom_boards = {p_name: [b.strip() for b in boards_arg.split(",") if b.strip()]}
+
+    exclude_titles = [t.strip() for t in getattr(args, "exclude_titles", "").split(",") if t.strip()]
+    exclude_keywords = [k.strip() for k in getattr(args, "exclude_keywords", "").split(",") if k.strip()]
+
+    # If user wants to save profile preferences
+    save_target = getattr(args, "save_profile", None)
+    if save_target:
+        effective_prefs = HunterPreferences(
+            roles=[args.role] if args.role else prefs.roles,
+            locations=[args.location] if args.location else prefs.locations,
+            seniority=args.seniority if getattr(args, "seniority", "all") != "all" else prefs.seniority,
+            min_experience_years=args.min_exp if getattr(args, "min_exp", None) is not None else prefs.min_experience_years,
+            max_experience_years=args.max_exp if getattr(args, "max_exp", None) is not None else prefs.max_experience_years,
+            grad_year=args.grad_year if args.grad_year is not None else prefs.grad_year,
+            exclude_titles=exclude_titles or prefs.exclude_titles,
+            exclude_keywords=exclude_keywords or prefs.exclude_keywords,
+            base_resume_path=args.base_resume or prefs.base_resume_path,
+            output_dir=args.output_dir or prefs.output_dir,
+            custom_boards=custom_boards or prefs.custom_boards
+        )
+        effective_prefs.save_file(save_target)
+        print(f"✓ Saved hunter profile preferences to '{save_target}'")
+        return
+
     target_info = []
     if args.company:
         target_info.append(f"Company: {args.company}")
@@ -342,11 +387,18 @@ def cmd_hunt(args):
         target_info.append(f"Role: '{args.role}'")
     if args.location:
         target_info.append(f"Location: '{args.location}'")
+    if getattr(args, "seniority", "all") != "all":
+        target_info.append(f"Seniority: {args.seniority}")
     if args.grad_year:
         target_info.append(f"Cohort: {args.grad_year}")
+    if getattr(args, "min_exp", None) is not None:
+        target_info.append(f"MinExp: {args.min_exp}y")
+    if getattr(args, "max_exp", None) is not None:
+        target_info.append(f"MaxExp: {args.max_exp}y")
 
     filter_desc = f" ({', '.join(target_info)})" if target_info else ""
-    print(f"Hunting verified live requisitions via ATS APIs{filter_desc}...")
+    if not getattr(args, "json", False):
+        print(f"Hunting verified live requisitions via ATS APIs{filter_desc}...")
     hunter = JobHunter(
         company=args.company,
         provider=args.provider,
@@ -357,7 +409,16 @@ def cmd_hunt(args):
         compile_resumes=args.compile,
         base_resume_path=args.base_resume,
         output_dir=args.output_dir,
-        rss_url=getattr(args, "rss", None)
+        rss_url=getattr(args, "rss", None),
+        preferences=prefs,
+        seniority=getattr(args, "seniority", "all"),
+        min_experience_years=getattr(args, "min_exp", None),
+        max_experience_years=getattr(args, "max_exp", None),
+        exclude_titles=exclude_titles,
+        exclude_keywords=exclude_keywords,
+        custom_boards=custom_boards,
+        workday_host=getattr(args, "workday_host", None),
+        workday_site=getattr(args, "workday_site", None)
     )
     postings = hunter.hunt()
 
@@ -689,7 +750,17 @@ def main():
     p_hunt.add_argument("-c", "--company", default="", help="Target company, board, or community identifier (e.g. 'canonical', 'linear', 'ramp', 'cern', 'amazon', 'aikyam', 'yc')")
     p_hunt.add_argument("-r", "--role", default="", help="Role/title keyword filter (e.g. 'software engineer', 'intern', 'backend')")
     p_hunt.add_argument("-l", "--location", default="", help="Target location / country filter (e.g. 'Remote', 'US', 'Germany', 'India')")
+    p_hunt.add_argument("-s", "--seniority", choices=["all", "intern", "entry", "mid", "senior", "staff", "lead", "manager"], default="all", help="Target seniority level (default: all)")
     p_hunt.add_argument("-g", "--grad-year", type=int, default=None, help="Target graduation cohort year filter (e.g. 2026, 2027)")
+    p_hunt.add_argument("--min-exp", type=int, default=None, help="Minimum years of experience required in JD (e.g. 5)")
+    p_hunt.add_argument("--max-exp", type=int, default=None, help="Maximum years of experience allowed in JD (e.g. 2)")
+    p_hunt.add_argument("--exclude-titles", default="", help="Comma-separated title keywords to exclude (e.g. 'manager,director')")
+    p_hunt.add_argument("--exclude-keywords", default="", help="Comma-separated description keywords to reject (e.g. 'clearance')")
+    p_hunt.add_argument("--profile", "--config", help="Path to preferences JSON profile (e.g. 'preferences.json')")
+    p_hunt.add_argument("--boards", default="", help="Custom ATS company boards (JSON file path or JSON string mapping platform to companies)")
+    p_hunt.add_argument("--workday-host", default=None, help="Custom Workday host domain (e.g. 'nvidia.wd5.myworkdayjobs.com')")
+    p_hunt.add_argument("--workday-site", default=None, help="Custom Workday site identifier (e.g. 'NVIDIAExternalCareerSite')")
+    p_hunt.add_argument("--save-profile", default=None, help="Save effective hunt preferences to a JSON profile file")
     p_hunt.add_argument("--rss", default=None, help="Custom RSS 2.0 or Atom XML job feed URL (e.g. 'https://remoteok.com/remote-jobs.rss')")
     p_hunt.add_argument("-n", "--limit", type=int, default=5, help="Maximum postings per source (default: 5)")
     p_hunt.add_argument("--compile", action="store_true", help="Auto-tailor and compile paired single-page PDFs via ResumeCompiler")

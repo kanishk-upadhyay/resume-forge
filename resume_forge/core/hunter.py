@@ -308,7 +308,7 @@ def _match_experience(description: str,
         high = int(high_str) if high_str else low
         if max_exp is not None and low > max_exp:
             return False
-        if min_exp is not None and high < min_exp:
+        if min_exp is not None and low < min_exp:
             return False
     return True
 
@@ -413,9 +413,18 @@ class SmartRecruitersProvider(BaseATSProvider):
     """SmartRecruiters REST API provider."""
     name = "smartrecruiters"
 
+    COMMUNITY_PRESETS = {
+        "bosch": {"id": "BoschGroup", "name": "Bosch Group"},
+        "boschgroup": {"id": "BoschGroup", "name": "Bosch Group"},
+        "cern": {"id": "CERN", "name": "CERN"},
+        "square": {"id": "Block", "name": "Block / Square"},
+        "block": {"id": "Block", "name": "Block / Square"},
+    }
+
     def __init__(self, company_id: str, company_name: Optional[str] = None):
-        self.company_id = company_id
-        self.company_name = company_name or company_id.upper()
+        preset = self.COMMUNITY_PRESETS.get(company_id.lower().strip(), {})
+        self.company_id = preset.get("id") or company_id
+        self.company_name = company_name or preset.get("name") or self.company_id.upper()
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
@@ -635,25 +644,26 @@ class WorkdayProvider(BaseATSProvider):
     """Workday CXS REST API provider."""
     name = "workday"
 
+    COMMUNITY_PRESETS = {
+        "redhat": {"host": "redhat.wd5.myworkdayjobs.com", "site": "Jobs", "name": "Red Hat"},
+        "samsung": {"host": "sec.wd3.myworkdayjobs.com", "site": "Samsung_Careers", "name": "Samsung Electronics"},
+        "sec": {"host": "sec.wd3.myworkdayjobs.com", "site": "Samsung_Careers", "name": "Samsung Electronics"},
+        "nvidia": {"host": "nvidia.wd5.myworkdayjobs.com", "site": "NVIDIAExternalCareerSite", "name": "NVIDIA"},
+        "adobe": {"host": "adobe.wd5.myworkdayjobs.com", "site": "external_experienced", "name": "Adobe"},
+        "salesforce": {"host": "salesforce.wd1.myworkdayjobs.com", "site": "External_Career_Site", "name": "Salesforce"},
+        "target": {"host": "target.wd5.myworkdayjobs.com", "site": "targetcareers", "name": "Target"},
+    }
+
     def __init__(self,
                  company_id: str,
                  host: Optional[str] = None,
                  site: Optional[str] = None,
                  company_name: Optional[str] = None):
         self.company_id = company_id.lower().strip()
-        if self.company_id == "redhat":
-            self.host = host or "redhat.wd5.myworkdayjobs.com"
-            self.site = site or "Jobs"
-            self.company_name = company_name or "Red Hat"
-        elif self.company_id in ("samsung", "sec"):
-            self.host = host or "sec.wd3.myworkdayjobs.com"
-            self.site = site or "Samsung_Careers"
-            self.company_id = "sec"
-            self.company_name = company_name or "Samsung Electronics"
-        else:
-            self.host = host or f"{self.company_id}.wd5.myworkdayjobs.com"
-            self.site = site or "Jobs"
-            self.company_name = company_name or self.company_id.replace("_", " ").title()
+        preset = self.COMMUNITY_PRESETS.get(self.company_id, {})
+        self.host = host or preset.get("host") or f"{self.company_id}.wd5.myworkdayjobs.com"
+        self.site = site or preset.get("site") or "Jobs"
+        self.company_name = company_name or preset.get("name") or self.company_id.replace("_", " ").title()
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
@@ -908,14 +918,27 @@ class RSSFeedProvider(BaseATSProvider):
 
 
 class JobHunter:
-    """Orchestrates multi-ATS polling, keyword scoring, and single-page resume pairing."""
+    """Orchestrates multi-ATS polling, keyword scoring, and single-page resume pairing.
+    
+    Fully driven by user preferences, custom ATS boards, and configurable seniority/experience
+    filters so anyone can customize their job hunting pipeline.
+    """
 
-    # Default discoverable company boards for multi-board search
-    POPULAR_GREENHOUSE_BOARDS = ["canonical", "figma", "stripe", "databricks", "vercel", "brex", "scaleai"]
-    POPULAR_LEVER_BOARDS = ["palantir"]
-    POPULAR_SMARTRECRUITERS_BOARDS = ["cern", "boschgroup"]
-    POPULAR_ASHBY_BOARDS = ["linear", "ramp", "cursor", "supabase", "modal", "retool", "posthog"]
-    POPULAR_WORKDAY_BOARDS = ["redhat", "samsung"]
+    # Default community discoverable company boards for multi-board search
+    DEFAULT_BOARDS = {
+        "greenhouse": ["canonical", "figma", "stripe", "databricks", "vercel", "brex", "scaleai"],
+        "lever": ["palantir"],
+        "smartrecruiters": ["cern", "boschgroup"],
+        "ashby": ["linear", "ramp", "cursor", "supabase", "modal", "retool", "posthog"],
+        "workday": ["redhat", "samsung"]
+    }
+
+    # Backward compatibility aliases
+    POPULAR_GREENHOUSE_BOARDS = DEFAULT_BOARDS["greenhouse"]
+    POPULAR_LEVER_BOARDS = DEFAULT_BOARDS["lever"]
+    POPULAR_SMARTRECRUITERS_BOARDS = DEFAULT_BOARDS["smartrecruiters"]
+    POPULAR_ASHBY_BOARDS = DEFAULT_BOARDS["ashby"]
+    POPULAR_WORKDAY_BOARDS = DEFAULT_BOARDS["workday"]
 
     def __init__(self,
                  company: str = "",
@@ -927,24 +950,63 @@ class JobHunter:
                  compile_resumes: bool = False,
                  base_resume_path: Optional[str] = None,
                  output_dir: str = "output/hunt",
-                 rss_url: Optional[str] = None):
+                 rss_url: Optional[str] = None,
+                 preferences: Optional[HunterPreferences] = None,
+                 seniority: str = "all",
+                 min_experience_years: Optional[int] = None,
+                 max_experience_years: Optional[int] = None,
+                 exclude_titles: Optional[List[str]] = None,
+                 exclude_keywords: Optional[List[str]] = None,
+                 custom_boards: Optional[Dict[str, List[Any]]] = None,
+                 workday_host: Optional[str] = None,
+                 workday_site: Optional[str] = None):
+
+        # Base preferences from object or empty generic profile
+        p = preferences if preferences is not None else HunterPreferences()
+        self.preferences = p
+
         self.company = (company or "").strip()
         self.provider = (provider or "all").lower().strip()
-        self.role = (role or "").strip()
-        self.location = (location or "").strip()
-        self.grad_year = grad_year
+
+        # Explicit arguments override profile defaults if provided
+        self.role = (role if role else (", ".join(p.roles) if p.roles else "")).strip()
+        self.location = (location if location else (", ".join(p.locations) if p.locations else "")).strip()
+        self.grad_year = grad_year if grad_year is not None else p.grad_year
         self.limit = limit
         self.compile_resumes = compile_resumes
-        self.base_resume_path = base_resume_path or self._detect_default_resume()
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir if output_dir != "output/hunt" else p.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.rss_url = rss_url
 
+        self.seniority = seniority if seniority != "all" else p.seniority
+        self.min_experience_years = min_experience_years if min_experience_years is not None else p.min_experience_years
+        self.max_experience_years = max_experience_years if max_experience_years is not None else p.max_experience_years
+        self.exclude_titles = list(exclude_titles or p.exclude_titles)
+        self.exclude_keywords = list(exclude_keywords or p.exclude_keywords)
+
+        # Merge custom boards from preferences and parameters
+        merged_boards = dict(p.custom_boards)
+        if custom_boards:
+            for k, v in custom_boards.items():
+                merged_boards.setdefault(k, []).extend(v if isinstance(v, list) else [v])
+        self.custom_boards = merged_boards
+
+        self.workday_host = workday_host
+        self.workday_site = workday_site
+
+        # Base resume
+        raw_base = base_resume_path or p.base_resume_path or self._detect_default_resume()
+        self.base_resume_path = raw_base
+
     def _detect_default_resume(self) -> str:
-        for candidate in ["resume.tex", "resume.json", "examples/resume.tex", "variants/canonical.tex"]:
+        for candidate in ["resume.tex", "resume.json", "examples/resume.tex"]:
             if Path(candidate).exists():
                 return candidate
         return ""
+
+    def register_board(self, ats_type: str, board_info: Union[str, Dict[str, Any]]) -> None:
+        """Dynamically registers a custom company ATS board at runtime."""
+        self.custom_boards.setdefault(ats_type.lower(), []).append(board_info)
 
     def get_providers(self) -> List[BaseATSProvider]:
         providers = []
@@ -956,34 +1018,64 @@ class JobHunter:
             providers.append(RSSFeedProvider(self.rss_url, self.company or "RSS Feed"))
             return providers
 
+        # If user explicitly specified Workday host/site flags for a custom company
+        if self.workday_host and self.workday_site:
+            providers.append(WorkdayProvider(comp or "custom", host=self.workday_host, site=self.workday_site))
+            return providers
+
         # If user targeted a specific company or source
         if comp and comp != "all":
+            # Check user-configured custom boards first
+            for ats_type, boards in self.custom_boards.items():
+                for b in boards:
+                    if isinstance(b, dict):
+                        if b.get("company", "").lower() == comp:
+                            if ats_type == "workday":
+                                providers.append(WorkdayProvider(comp, host=b.get("host"), site=b.get("site"), company_name=b.get("name")))
+                            elif ats_type == "smartrecruiters":
+                                providers.append(SmartRecruitersProvider(b.get("id", comp), b.get("name")))
+                            elif ats_type == "ashby":
+                                providers.append(AshbyProvider(b.get("token", comp), b.get("name")))
+                            elif ats_type == "lever":
+                                providers.append(LeverProvider(b.get("id", comp), b.get("name")))
+                            else:
+                                providers.append(GreenhouseProvider(b.get("token", comp), b.get("name")))
+                            return providers
+                    elif isinstance(b, str) and b.lower() == comp:
+                        if ats_type == "greenhouse":
+                            providers.append(GreenhouseProvider(comp))
+                        elif ats_type == "lever":
+                            providers.append(LeverProvider(comp))
+                        elif ats_type == "smartrecruiters":
+                            providers.append(SmartRecruitersProvider(comp))
+                        elif ats_type == "ashby":
+                            providers.append(AshbyProvider(comp))
+                        elif ats_type == "workday":
+                            providers.append(WorkdayProvider(comp))
+                        return providers
+
             if comp == "amazon":
                 providers.append(AmazonProvider())
-            elif comp in ("bosch", "boschgroup"):
-                providers.append(SmartRecruitersProvider("BoschGroup", "Bosch Group"))
-            elif comp in ("samsung", "sec"):
-                providers.append(WorkdayProvider("samsung", company_name="Samsung Electronics"))
             elif comp in ("aikyam", "aikyamjobs"):
                 providers.append(AikyamProvider())
             elif comp in ("hn", "yc", "hnhiring"):
                 providers.append(HNHiringProvider())
-            elif p_target == "smartrecruiters" or comp in self.POPULAR_SMARTRECRUITERS_BOARDS:
-                providers.append(SmartRecruitersProvider(comp, comp.upper()))
-            elif p_target == "workday" or comp in self.POPULAR_WORKDAY_BOARDS:
+            elif comp in WorkdayProvider.COMMUNITY_PRESETS or p_target == "workday":
                 providers.append(WorkdayProvider(comp))
-            elif p_target == "lever" or comp in self.POPULAR_LEVER_BOARDS:
+            elif comp in SmartRecruitersProvider.COMMUNITY_PRESETS or p_target == "smartrecruiters":
+                providers.append(SmartRecruitersProvider(comp))
+            elif p_target == "lever" or comp in self.DEFAULT_BOARDS.get("lever", []):
                 providers.append(LeverProvider(comp, comp.capitalize()))
-            elif p_target == "ashby" or comp in self.POPULAR_ASHBY_BOARDS:
+            elif p_target == "ashby" or comp in self.DEFAULT_BOARDS.get("ashby", []):
                 providers.append(AshbyProvider(comp, comp.capitalize()))
-            elif p_target == "greenhouse" or comp in self.POPULAR_GREENHOUSE_BOARDS:
+            elif p_target == "greenhouse" or comp in self.DEFAULT_BOARDS.get("greenhouse", []):
                 providers.append(GreenhouseProvider(comp, comp.capitalize()))
             else:
                 # Default to Greenhouse board if unknown company token specified
                 providers.append(GreenhouseProvider(comp, comp.capitalize()))
             return providers
 
-        # Global multi-provider search across configured ATS platforms
+        # Global multi-provider search across configured and custom ATS platforms
         if p_target in ("all", "amazon"):
             providers.append(AmazonProvider())
 
@@ -996,25 +1088,59 @@ class JobHunter:
         if p_target == "rss":
             providers.append(RSSFeedProvider("https://remoteok.com/remote-jobs.rss", "RemoteOK"))
 
+        # Add user-configured custom boards
+        for ats_type, boards in self.custom_boards.items():
+            if p_target in ("all", ats_type):
+                for b in boards:
+                    if isinstance(b, dict):
+                        c_id = b.get("company") or b.get("id") or b.get("token") or "custom"
+                        if ats_type == "workday":
+                            providers.append(WorkdayProvider(c_id, host=b.get("host"), site=b.get("site"), company_name=b.get("name")))
+                        elif ats_type == "smartrecruiters":
+                            providers.append(SmartRecruitersProvider(c_id, b.get("name")))
+                        elif ats_type == "ashby":
+                            providers.append(AshbyProvider(c_id, b.get("name")))
+                        elif ats_type == "lever":
+                            providers.append(LeverProvider(c_id, b.get("name")))
+                        else:
+                            providers.append(GreenhouseProvider(c_id, b.get("name")))
+                    elif isinstance(b, str):
+                        if ats_type == "greenhouse":
+                            providers.append(GreenhouseProvider(b))
+                        elif ats_type == "lever":
+                            providers.append(LeverProvider(b))
+                        elif ats_type == "smartrecruiters":
+                            providers.append(SmartRecruitersProvider(b))
+                        elif ats_type == "ashby":
+                            providers.append(AshbyProvider(b))
+                        elif ats_type == "workday":
+                            providers.append(WorkdayProvider(b))
+
+        # Standard community boards (if not already registered via custom boards)
         if p_target in ("all", "smartrecruiters"):
-            for c in self.POPULAR_SMARTRECRUITERS_BOARDS:
-                providers.append(SmartRecruitersProvider(c, c.upper()))
+            for c in self.DEFAULT_BOARDS.get("smartrecruiters", []):
+                if c not in self.custom_boards.get("smartrecruiters", []):
+                    providers.append(SmartRecruitersProvider(c))
 
         if p_target in ("all", "greenhouse"):
-            for c in self.POPULAR_GREENHOUSE_BOARDS:
-                providers.append(GreenhouseProvider(c))
+            for c in self.DEFAULT_BOARDS.get("greenhouse", []):
+                if c not in self.custom_boards.get("greenhouse", []):
+                    providers.append(GreenhouseProvider(c))
 
         if p_target in ("all", "lever"):
-            for l in self.POPULAR_LEVER_BOARDS:
-                providers.append(LeverProvider(l))
+            for l in self.DEFAULT_BOARDS.get("lever", []):
+                if l not in self.custom_boards.get("lever", []):
+                    providers.append(LeverProvider(l))
 
         if p_target in ("all", "ashby"):
-            for a in self.POPULAR_ASHBY_BOARDS:
-                providers.append(AshbyProvider(a, a.capitalize()))
+            for a in self.DEFAULT_BOARDS.get("ashby", []):
+                if a not in self.custom_boards.get("ashby", []):
+                    providers.append(AshbyProvider(a, a.capitalize()))
 
         if p_target in ("all", "workday"):
-            for w in self.POPULAR_WORKDAY_BOARDS:
-                providers.append(WorkdayProvider(w))
+            for w in self.DEFAULT_BOARDS.get("workday", []):
+                if w not in self.custom_boards.get("workday", []):
+                    providers.append(WorkdayProvider(w))
 
         return providers
 
@@ -1042,41 +1168,32 @@ class JobHunter:
                     limit=self.limit
                 )
                 for posting in results:
-                    # Filter by grad year if title or description explicitly mentions cohort/graduation years
-                    if self.grad_year:
-                        cohort_text = f"{posting.title} {posting.description[:800]}"
-                        cohort_mentions = re.findall(
-                            r'\b(?:class of|graduating|cohort|batch|graduation(?:\s+date)?)\s*(?:in\s*|between\s*|:\s*)?(202[0-9])(?:\s*(?:-|–|to|and|or)\s*(202[0-9]))?\b',
-                            cohort_text,
-                            re.IGNORECASE
-                        )
-                        if cohort_mentions:
-                            supported_years = set()
-                            for y1, y2 in cohort_mentions:
-                                if y1:
-                                    supported_years.add(int(y1))
-                                if y2:
-                                    supported_years.add(int(y2))
-                                    if y1:
-                                        for yr in range(int(y1), int(y2) + 1):
-                                            supported_years.add(yr)
-                            if supported_years and self.grad_year not in supported_years:
-                                continue
+                    # 1. Seniority and title exclusions check
+                    if not _match_role(posting.title, self.role, seniority=self.seniority, exclude_titles=self.exclude_titles):
+                        continue
 
-                    # Early-career experience guardrail: exclude roles requiring 3+ years of experience
-                    is_early_career = bool(self.grad_year or any(k in self.role.lower() for k in ("intern", "student", "junior", "entry", "graduate")))
-                    if is_early_career and posting.description:
-                        if re.search(r'\b([3-9]|\d{2})\+?\s*(?:-\s*\d+\s*)?years?(?:\s+of)?\s+experience\b', posting.description, re.IGNORECASE):
+                    # 2. Description keyword exclusions
+                    if self.exclude_keywords and posting.description:
+                        desc_lower = posting.description.lower()
+                        if any(k.lower() in desc_lower for k in self.exclude_keywords if k):
                             continue
 
-                    # ATS scoring and keyword alignment
+                    # 3. Graduation cohort year filter
+                    if self.grad_year and not _match_grad_year(posting.title, posting.description, self.grad_year):
+                        continue
+
+                    # 4. Experience guardrails (min and max years of experience)
+                    if not _match_experience(posting.description, self.min_experience_years, self.max_experience_years):
+                        continue
+
+                    # 5. ATS scoring and keyword alignment
                     if base_resume_data and posting.description:
                         analyzer = ATSAnalyzer(base_resume_data)
                         report = analyzer.analyze(job_description=posting.description)
                         posting.match_rate_percent = report.get("match_rate_percent", 85)
                         posting.matched_keywords = report.get("matched_keywords", [])
 
-                    # Auto-compile paired resume if enabled
+                    # 6. Auto-compile paired resume if enabled
                     if self.compile_resumes and base_resume_data and compiler:
                         safe_comp = re.sub(r'[^a-zA-Z0-9]', '_', posting.company.lower())
                         safe_id = re.sub(r'[^a-zA-Z0-9]', '_', str(posting.id))

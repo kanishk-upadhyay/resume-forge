@@ -3,6 +3,7 @@
 import unittest
 import tempfile
 import sys
+import json
 from pathlib import Path
 from io import StringIO
 from unittest.mock import patch
@@ -187,6 +188,46 @@ Sincerely, \\ Grace Hopper
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 1)
+
+    def test_cli_hunt_save_and_load_profile(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_path = Path(tmpdir) / "profile.json"
+            # 1. Save profile
+            with patch.object(sys, 'argv', [
+                "resume-forge", "hunt",
+                "--save-profile", str(profile_path),
+                "-r", "Backend Engineer",
+                "-l", "Remote,US",
+                "-s", "senior",
+                "--min-exp", "5",
+                "--max-exp", "10",
+                "--exclude-titles", "manager,director"
+            ]):
+                with patch('sys.stdout', new=StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue()
+                    self.assertIn("Saved hunter profile preferences", out)
+            self.assertTrue(profile_path.exists())
+            saved_data = json.loads(profile_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved_data["seniority"], "senior")
+            self.assertEqual(saved_data["min_experience_years"], 5)
+            self.assertIn("manager", saved_data["exclude_titles"])
+
+            # 2. Run hunt using saved profile
+            from unittest.mock import MagicMock
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({"jobs": []}).encode("utf-8")
+            with patch("urllib.request.urlopen", return_value=mock_resp):
+                with patch.object(sys, 'argv', [
+                    "resume-forge", "hunt",
+                    "--profile", str(profile_path),
+                    "-p", "amazon",
+                    "--json"
+                ]):
+                    with patch('sys.stdout', new=StringIO()) as fake_out:
+                        main()
+                        out = fake_out.getvalue()
+                        self.assertEqual(json.loads(out), [])
 
 
 if __name__ == "__main__":
