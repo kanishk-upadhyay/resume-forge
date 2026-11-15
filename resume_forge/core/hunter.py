@@ -77,6 +77,20 @@ ISO_COUNTRY_MAP = {
     "se": "SWE", "swe": "SWE", "sweden": "SWE",
 }
 
+ISO_2_MAP = {
+    "india": "in", "in": "in", "ind": "in",
+    "united states": "us", "usa": "us", "us": "us",
+    "germany": "de", "de": "de", "deu": "de",
+    "switzerland": "ch", "ch": "ch", "che": "ch",
+    "united kingdom": "gb", "uk": "gb", "gbr": "gb", "gb": "gb",
+    "france": "fr", "fr": "fr", "fra": "fr",
+    "canada": "ca", "ca": "ca", "can": "ca",
+    "australia": "au", "au": "au", "aus": "au",
+    "singapore": "sg", "sg": "sg", "sgp": "sg",
+    "japan": "jp", "jp": "jp", "jpn": "jp",
+    "netherlands": "nl", "nl": "nl", "nld": "nl",
+}
+
 REMOTE_TERMS = {"remote", "home based", "worldwide", "anywhere", "virtual", "telecommute", "global"}
 
 
@@ -103,6 +117,9 @@ def _match_location(job_location_str: str, target_location: str) -> bool:
             return True
         iso_code = ISO_COUNTRY_MAP.get(token)
         if iso_code and iso_code.lower() in job_loc_lower:
+            return True
+        iso2 = ISO_2_MAP.get(token)
+        if iso2 and re.search(r'\b' + re.escape(iso2) + r'\b', job_loc_lower):
             return True
     return False
 
@@ -198,7 +215,19 @@ class SmartRecruitersProvider(BaseATSProvider):
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
-        url = f"https://api.smartrecruiters.com/v1/companies/{self.company_id}/postings?limit=100"
+        params = [f"limit={min(100, max(20, limit * 4))}"]
+        if role:
+            params.append(f"q={urllib.request.quote(role)}")
+        if location and location.lower() not in ("all", "*", "remote"):
+            for loc_part in location.split(","):
+                c_clean = loc_part.strip().lower()
+                iso2 = ISO_2_MAP.get(c_clean)
+                if iso2:
+                    params.append(f"country={iso2}")
+                    break
+
+        query_str = f"?{'&'.join(params)}" if params else ""
+        url = f"https://api.smartrecruiters.com/v1/companies/{self.company_id}/postings{query_str}"
         req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
@@ -412,6 +441,11 @@ class WorkdayProvider(BaseATSProvider):
             self.host = host or "redhat.wd5.myworkdayjobs.com"
             self.site = site or "Jobs"
             self.company_name = company_name or "Red Hat"
+        elif self.company_id in ("samsung", "sec"):
+            self.host = host or "sec.wd3.myworkdayjobs.com"
+            self.site = site or "Samsung_Careers"
+            self.company_id = "sec"
+            self.company_name = company_name or "Samsung Electronics"
         else:
             self.host = host or f"{self.company_id}.wd5.myworkdayjobs.com"
             self.site = site or "Jobs"
@@ -420,11 +454,18 @@ class WorkdayProvider(BaseATSProvider):
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
         url = f"https://{self.host}/wday/cxs/{self.company_id}/{self.site}/jobs"
+        search_terms = []
+        if role:
+            search_terms.append(role)
+        if location and location.lower() not in ("all", "*", "remote"):
+            search_terms.append(location)
+        search_query = " ".join(search_terms)
+
         payload = json.dumps({
             "appliedFacets": {},
             "limit": min(50, limit * 4),
             "offset": 0,
-            "searchText": role or ""
+            "searchText": search_query
         }).encode("utf-8")
 
         headers = dict(DEFAULT_HEADERS)
@@ -481,9 +522,9 @@ class JobHunter:
     # Default discoverable company boards for multi-board search
     POPULAR_GREENHOUSE_BOARDS = ["canonical", "figma", "stripe", "databricks"]
     POPULAR_LEVER_BOARDS = ["palantir"]
-    POPULAR_SMARTRECRUITERS_BOARDS = ["cern"]
+    POPULAR_SMARTRECRUITERS_BOARDS = ["cern", "boschgroup"]
     POPULAR_ASHBY_BOARDS = ["linear", "ramp", "cursor", "supabase", "modal"]
-    POPULAR_WORKDAY_BOARDS = ["redhat"]
+    POPULAR_WORKDAY_BOARDS = ["redhat", "samsung"]
 
     def __init__(self,
                  company: str = "",
@@ -521,14 +562,18 @@ class JobHunter:
         if comp and comp != "all":
             if comp == "amazon":
                 providers.append(AmazonProvider())
+            elif comp in ("bosch", "boschgroup"):
+                providers.append(SmartRecruitersProvider("BoschGroup", "Bosch Group"))
+            elif comp in ("samsung", "sec"):
+                providers.append(WorkdayProvider("samsung", company_name="Samsung Electronics"))
             elif p_target == "smartrecruiters" or comp in self.POPULAR_SMARTRECRUITERS_BOARDS:
                 providers.append(SmartRecruitersProvider(comp, comp.upper()))
+            elif p_target == "workday" or comp in self.POPULAR_WORKDAY_BOARDS:
+                providers.append(WorkdayProvider(comp))
             elif p_target == "lever" or comp in self.POPULAR_LEVER_BOARDS:
                 providers.append(LeverProvider(comp, comp.capitalize()))
             elif p_target == "ashby" or comp in self.POPULAR_ASHBY_BOARDS:
                 providers.append(AshbyProvider(comp, comp.capitalize()))
-            elif p_target == "workday" or comp in self.POPULAR_WORKDAY_BOARDS:
-                providers.append(WorkdayProvider(comp))
             elif p_target == "greenhouse" or comp in self.POPULAR_GREENHOUSE_BOARDS:
                 providers.append(GreenhouseProvider(comp, comp.capitalize()))
             else:
