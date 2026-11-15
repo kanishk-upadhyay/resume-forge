@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Callable, Type
 
 from .schema import ResumeData
 from .parser import LatexResumeParser
@@ -69,6 +69,7 @@ class HunterPreferences:
     grad_year: Optional[int] = None
     exclude_titles: List[str] = field(default_factory=list)
     exclude_keywords: List[str] = field(default_factory=list)
+    require_keywords: List[str] = field(default_factory=list)
     remote_only: bool = False
     base_resume_path: Optional[str] = None
     output_dir: str = "output/hunt"
@@ -84,6 +85,7 @@ class HunterPreferences:
             "grad_year": self.grad_year,
             "exclude_titles": self.exclude_titles,
             "exclude_keywords": self.exclude_keywords,
+            "require_keywords": self.require_keywords,
             "remote_only": self.remote_only,
             "base_resume_path": self.base_resume_path,
             "output_dir": self.output_dir,
@@ -111,6 +113,7 @@ class HunterPreferences:
             grad_year=data.get("grad_year"),
             exclude_titles=data.get("exclude_titles") or [],
             exclude_keywords=data.get("exclude_keywords") or [],
+            require_keywords=data.get("require_keywords") or [],
             remote_only=bool(data.get("remote_only", False)),
             base_resume_path=data.get("base_resume_path"),
             output_dir=data.get("output_dir", "output/hunt"),
@@ -917,6 +920,56 @@ class RSSFeedProvider(BaseATSProvider):
         return postings
 
 
+class ATSProviderRegistry:
+    """Central registry and dispatcher for ATS API providers and job board integrations.
+    
+    Enables third-party plugins, custom ATS providers, and extensions to register
+    new platforms dynamically without modifying core engine logic.
+    """
+
+    _providers: Dict[str, Type[BaseATSProvider]] = {}
+    _aliases: Dict[str, str] = {}
+
+    @classmethod
+    def register(cls, name: str, provider_cls: Type[BaseATSProvider], aliases: Optional[List[str]] = None) -> None:
+        """Registers an ATS provider class under a canonical name and optional aliases."""
+        key = name.lower().strip()
+        cls._providers[key] = provider_cls
+        if aliases:
+            for a in aliases:
+                cls._aliases[a.lower().strip()] = key
+
+    @classmethod
+    def get(cls, name: str) -> Optional[Type[BaseATSProvider]]:
+        """Retrieves an ATS provider class by canonical name or alias."""
+        key = name.lower().strip()
+        canon = cls._aliases.get(key, key)
+        return cls._providers.get(canon)
+
+    @classmethod
+    def list_providers(cls) -> List[str]:
+        """Returns all registered canonical provider names."""
+        return list(cls._providers.keys())
+
+    @classmethod
+    def is_registered(cls, name: str) -> bool:
+        """Checks if a provider name or alias is registered."""
+        key = name.lower().strip()
+        return key in cls._providers or key in cls._aliases
+
+
+# Auto-register standard built-in ATS providers
+ATSProviderRegistry.register("amazon", AmazonProvider)
+ATSProviderRegistry.register("smartrecruiters", SmartRecruitersProvider, aliases=["smartrecruiter", "sr"])
+ATSProviderRegistry.register("greenhouse", GreenhouseProvider, aliases=["gh"])
+ATSProviderRegistry.register("lever", LeverProvider)
+ATSProviderRegistry.register("ashby", AshbyProvider)
+ATSProviderRegistry.register("workday", WorkdayProvider, aliases=["wd"])
+ATSProviderRegistry.register("aikyam", AikyamProvider, aliases=["aikyamjobs"])
+ATSProviderRegistry.register("hn", HNHiringProvider, aliases=["yc", "hnhiring"])
+ATSProviderRegistry.register("rss", RSSFeedProvider, aliases=["feed", "atom"])
+
+
 class JobHunter:
     """Orchestrates multi-ATS polling, keyword scoring, and single-page resume pairing.
     
@@ -940,6 +993,11 @@ class JobHunter:
     POPULAR_ASHBY_BOARDS = DEFAULT_BOARDS["ashby"]
     POPULAR_WORKDAY_BOARDS = DEFAULT_BOARDS["workday"]
 
+    @classmethod
+    def register_provider(cls, name: str, provider_cls: Type[BaseATSProvider], aliases: Optional[List[str]] = None) -> None:
+        """Registers a custom or third-party ATS provider plugin."""
+        ATSProviderRegistry.register(name, provider_cls, aliases=aliases)
+
     def __init__(self,
                  company: str = "",
                  provider: str = "all",
@@ -957,6 +1015,7 @@ class JobHunter:
                  max_experience_years: Optional[int] = None,
                  exclude_titles: Optional[List[str]] = None,
                  exclude_keywords: Optional[List[str]] = None,
+                 require_keywords: Optional[List[str]] = None,
                  custom_boards: Optional[Dict[str, List[Any]]] = None,
                  workday_host: Optional[str] = None,
                  workday_site: Optional[str] = None):
@@ -974,8 +1033,14 @@ class JobHunter:
         self.grad_year = grad_year if grad_year is not None else p.grad_year
         self.limit = limit
         self.compile_resumes = compile_resumes
-        self.output_dir = Path(output_dir if output_dir != "output/hunt" else p.output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        out_p = Path(output_dir if output_dir != "output/hunt" else p.output_dir)
+        try:
+            out_p.mkdir(parents=True, exist_ok=True)
+            self.output_dir = out_p
+        except OSError:
+            fallback = Path.home() / ".config" / "resume-forge" / "hunt"
+            fallback.mkdir(parents=True, exist_ok=True)
+            self.output_dir = fallback
         self.rss_url = rss_url
 
         self.seniority = seniority if seniority != "all" else p.seniority
@@ -983,6 +1048,8 @@ class JobHunter:
         self.max_experience_years = max_experience_years if max_experience_years is not None else p.max_experience_years
         self.exclude_titles = list(exclude_titles or p.exclude_titles)
         self.exclude_keywords = list(exclude_keywords or p.exclude_keywords)
+        self.require_keywords = list(require_keywords or p.require_keywords)
+        self.custom_filters: List[Callable[[JobPosting], bool]] = []
 
         # Merge custom boards from preferences and parameters
         merged_boards = dict(p.custom_boards)
@@ -1008,6 +1075,10 @@ class JobHunter:
         """Dynamically registers a custom company ATS board at runtime."""
         self.custom_boards.setdefault(ats_type.lower(), []).append(board_info)
 
+    def add_filter(self, predicate: Callable[[JobPosting], bool]) -> None:
+        """Registers a custom filter predicate function: (posting: JobPosting) -> bool."""
+        self.custom_filters.append(predicate)
+
     def get_providers(self) -> List[BaseATSProvider]:
         providers = []
         p_target = self.provider
@@ -1027,6 +1098,7 @@ class JobHunter:
         if comp and comp != "all":
             # Check user-configured custom boards first
             for ats_type, boards in self.custom_boards.items():
+                prov_cls = ATSProviderRegistry.get(ats_type)
                 for b in boards:
                     if isinstance(b, dict):
                         if b.get("company", "").lower() == comp:
@@ -1038,8 +1110,10 @@ class JobHunter:
                                 providers.append(AshbyProvider(b.get("token", comp), b.get("name")))
                             elif ats_type == "lever":
                                 providers.append(LeverProvider(b.get("id", comp), b.get("name")))
-                            else:
+                            elif ats_type == "greenhouse":
                                 providers.append(GreenhouseProvider(b.get("token", comp), b.get("name")))
+                            elif prov_cls:
+                                providers.append(prov_cls(comp))
                             return providers
                     elif isinstance(b, str) and b.lower() == comp:
                         if ats_type == "greenhouse":
@@ -1052,6 +1126,8 @@ class JobHunter:
                             providers.append(AshbyProvider(comp))
                         elif ats_type == "workday":
                             providers.append(WorkdayProvider(comp))
+                        elif prov_cls:
+                            providers.append(prov_cls(comp))
                         return providers
 
             if comp == "amazon":
@@ -1060,6 +1136,14 @@ class JobHunter:
                 providers.append(AikyamProvider())
             elif comp in ("hn", "yc", "hnhiring"):
                 providers.append(HNHiringProvider())
+            elif ATSProviderRegistry.is_registered(comp):
+                prov_cls = ATSProviderRegistry.get(comp)
+                if prov_cls:
+                    try:
+                        providers.append(prov_cls())
+                    except TypeError:
+                        providers.append(prov_cls(comp, comp.capitalize()))
+                    return providers
             elif comp in WorkdayProvider.COMMUNITY_PRESETS or p_target == "workday":
                 providers.append(WorkdayProvider(comp))
             elif comp in SmartRecruitersProvider.COMMUNITY_PRESETS or p_target == "smartrecruiters":
@@ -1091,6 +1175,7 @@ class JobHunter:
         # Add user-configured custom boards
         for ats_type, boards in self.custom_boards.items():
             if p_target in ("all", ats_type):
+                prov_cls = ATSProviderRegistry.get(ats_type)
                 for b in boards:
                     if isinstance(b, dict):
                         c_id = b.get("company") or b.get("id") or b.get("token") or "custom"
@@ -1102,8 +1187,10 @@ class JobHunter:
                             providers.append(AshbyProvider(c_id, b.get("name")))
                         elif ats_type == "lever":
                             providers.append(LeverProvider(c_id, b.get("name")))
-                        else:
+                        elif ats_type == "greenhouse":
                             providers.append(GreenhouseProvider(c_id, b.get("name")))
+                        elif prov_cls:
+                            providers.append(prov_cls(c_id))
                     elif isinstance(b, str):
                         if ats_type == "greenhouse":
                             providers.append(GreenhouseProvider(b))
@@ -1115,6 +1202,17 @@ class JobHunter:
                             providers.append(AshbyProvider(b))
                         elif ats_type == "workday":
                             providers.append(WorkdayProvider(b))
+                        elif prov_cls:
+                            providers.append(prov_cls(b))
+
+        # Check if p_target is a custom registered provider not yet instantiated
+        if p_target != "all":
+            custom_cls = ATSProviderRegistry.get(p_target)
+            if custom_cls and not any(isinstance(p, custom_cls) for p in providers):
+                try:
+                    providers.append(custom_cls())
+                except Exception:
+                    pass
 
         # Standard community boards (if not already registered via custom boards)
         if p_target in ("all", "smartrecruiters"):
@@ -1178,12 +1276,22 @@ class JobHunter:
                         if any(k.lower() in desc_lower for k in self.exclude_keywords if k):
                             continue
 
-                    # 3. Graduation cohort year filter
+                    # 3. Required keywords check (all required keywords must match in title or description)
+                    if self.require_keywords:
+                        full_content = f"{posting.title} {posting.description or ''}".lower()
+                        if not all(k.lower() in full_content for k in self.require_keywords if k):
+                            continue
+
+                    # 4. Graduation cohort year filter
                     if self.grad_year and not _match_grad_year(posting.title, posting.description, self.grad_year):
                         continue
 
-                    # 4. Experience guardrails (min and max years of experience)
+                    # 5. Experience guardrails (min and max years of experience)
                     if not _match_experience(posting.description, self.min_experience_years, self.max_experience_years):
+                        continue
+
+                    # 6. User-registered custom filter predicates
+                    if self.custom_filters and any(not fn(posting) for fn in self.custom_filters):
                         continue
 
                     # 5. ATS scoring and keyword alignment
