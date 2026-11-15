@@ -356,7 +356,8 @@ def cmd_hunt(args):
         limit=args.limit,
         compile_resumes=args.compile,
         base_resume_path=args.base_resume,
-        output_dir=args.output_dir
+        output_dir=args.output_dir,
+        rss_url=getattr(args, "rss", None)
     )
     postings = hunter.hunt()
 
@@ -683,12 +684,13 @@ def main():
     p_tailor.set_defaults(func=cmd_tailor)
 
     # hunt
-    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Greenhouse, Lever, SmartRecruiters, Amazon, Ashby, Workday) for live jobs")
-    p_hunt.add_argument("-p", "--provider", choices=["all", "greenhouse", "lever", "smartrecruiters", "amazon", "ashby", "workday"], default="all", help="ATS platform provider (default: all)")
-    p_hunt.add_argument("-c", "--company", default="", help="Target company or board identifier (e.g. 'canonical', 'linear', 'ramp', 'redhat', 'cern', 'amazon')")
+    p_hunt = subparsers.add_parser("hunt", help="Query official ATS APIs (Greenhouse, Lever, SmartRecruiters, Amazon, Ashby, Workday, Aikyam, HN/YC, RSS) for live jobs")
+    p_hunt.add_argument("-p", "--provider", choices=["all", "greenhouse", "lever", "smartrecruiters", "amazon", "ashby", "workday", "aikyam", "hn", "yc", "rss"], default="all", help="ATS/source provider (default: all)")
+    p_hunt.add_argument("-c", "--company", default="", help="Target company, board, or community identifier (e.g. 'canonical', 'linear', 'ramp', 'cern', 'amazon', 'aikyam', 'yc')")
     p_hunt.add_argument("-r", "--role", default="", help="Role/title keyword filter (e.g. 'software engineer', 'intern', 'backend')")
     p_hunt.add_argument("-l", "--location", default="", help="Target location / country filter (e.g. 'Remote', 'US', 'Germany', 'India')")
     p_hunt.add_argument("-g", "--grad-year", type=int, default=None, help="Target graduation cohort year filter (e.g. 2026, 2027)")
+    p_hunt.add_argument("--rss", default=None, help="Custom RSS 2.0 or Atom XML job feed URL (e.g. 'https://remoteok.com/remote-jobs.rss')")
     p_hunt.add_argument("-n", "--limit", type=int, default=5, help="Maximum postings per source (default: 5)")
     p_hunt.add_argument("--compile", action="store_true", help="Auto-tailor and compile paired single-page PDFs via ResumeCompiler")
     p_hunt.add_argument("-b", "--base-resume", help="Base resume path to tailor from (.tex or .json)")

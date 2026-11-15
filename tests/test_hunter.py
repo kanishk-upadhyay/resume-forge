@@ -7,7 +7,8 @@ from pathlib import Path
 
 from resume_forge.core.hunter import (
     JobHunter, JobPosting, AmazonProvider, SmartRecruitersProvider,
-    GreenhouseProvider, LeverProvider, AshbyProvider, WorkdayProvider, _clean_html
+    GreenhouseProvider, LeverProvider, AshbyProvider, WorkdayProvider,
+    AikyamProvider, HNHiringProvider, RSSFeedProvider, _clean_html
 )
 
 
@@ -205,6 +206,82 @@ class TestJobHunter(unittest.TestCase):
         results = hunter.hunt()
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].id, "1001")
+
+    @patch("urllib.request.urlopen")
+    def test_aikyam_provider_mock(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "data": [
+                {
+                    "id": 42,
+                    "attributes": {
+                        "title": "Software Tester Intern",
+                        "slug": "software-tester-intern-pratham",
+                        "jobDescription": "Testing educational platforms with Python.",
+                        "organization": {"data": {"attributes": {"name": "Pratham Books"}}},
+                        "location": "Bengaluru, India",
+                        "applyUrl": "https://aikyamjobs.org/jobs/software-tester-intern-pratham"
+                    }
+                }
+            ]
+        }).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        provider = AikyamProvider()
+        jobs = provider.fetch_jobs(role="intern", location="India", limit=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].title, "Software Tester Intern")
+        self.assertEqual(jobs[0].company, "Pratham Books")
+        self.assertEqual(jobs[0].ats_type, "aikyam")
+
+    @patch("urllib.request.urlopen")
+    def test_hn_hiring_provider_mock(self, mock_urlopen):
+        story_resp = MagicMock()
+        story_resp.read.return_value = json.dumps({
+            "hits": [{"objectID": "98765", "title": "Ask HN: Who is hiring? (Nov 2026)"}]
+        }).encode("utf-8")
+
+        comment_resp = MagicMock()
+        comment_resp.read.return_value = json.dumps({
+            "hits": [
+                {
+                    "objectID": "111222",
+                    "comment_text": "Retool | Software Engineering Intern | San Francisco / Remote | https://retool.com/careers"
+                }
+            ]
+        }).encode("utf-8")
+
+        mock_urlopen.return_value.__enter__.side_effect = [story_resp, comment_resp]
+
+        provider = HNHiringProvider()
+        jobs = provider.fetch_jobs(role="intern", location="remote", limit=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].company, "Retool")
+        self.assertEqual(jobs[0].ats_type, "hn")
+
+    @patch("urllib.request.urlopen")
+    def test_rss_feed_provider_mock(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Job Board Feed</title>
+    <item>
+      <title>Backend Engineer Intern</title>
+      <link>https://example.com/jobs/101</link>
+      <description>Work with Go and Python in a remote setting.</description>
+      <guid>job-101</guid>
+    </item>
+  </channel>
+</rss>"""
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        provider = RSSFeedProvider("https://example.com/rss", "Example Board")
+        jobs = provider.fetch_jobs(role="intern", location="remote", limit=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].title, "Backend Engineer Intern")
+        self.assertEqual(jobs[0].company, "Example Board")
+        self.assertEqual(jobs[0].ats_type, "rss")
 
 
 if __name__ == "__main__":

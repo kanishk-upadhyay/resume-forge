@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
 from .schema import ResumeData
 from .parser import LatexResumeParser
@@ -51,6 +51,97 @@ class JobPosting:
             "paired_resume_pdf": self.paired_resume_pdf,
             "paired_resume_tex": self.paired_resume_tex
         }
+
+
+@dataclass
+class HunterPreferences:
+    """Configurable user preferences and profile for the ATS Job Hunter pipeline.
+    
+    Eliminates hardcoded candidate settings, enabling any developer to customize
+    target roles, locations, seniority levels, experience requirements, custom company boards,
+    and exclusion filters without modifying source code.
+    """
+    roles: List[str] = field(default_factory=list)
+    locations: List[str] = field(default_factory=list)
+    seniority: str = "all"  # 'all', 'intern', 'entry', 'mid', 'senior', 'staff', 'lead', 'manager'
+    min_experience_years: Optional[int] = None
+    max_experience_years: Optional[int] = None
+    grad_year: Optional[int] = None
+    exclude_titles: List[str] = field(default_factory=list)
+    exclude_keywords: List[str] = field(default_factory=list)
+    remote_only: bool = False
+    base_resume_path: Optional[str] = None
+    output_dir: str = "output/hunt"
+    custom_boards: Dict[str, List[Any]] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "roles": self.roles,
+            "locations": self.locations,
+            "seniority": self.seniority,
+            "min_experience_years": self.min_experience_years,
+            "max_experience_years": self.max_experience_years,
+            "grad_year": self.grad_year,
+            "exclude_titles": self.exclude_titles,
+            "exclude_keywords": self.exclude_keywords,
+            "remote_only": self.remote_only,
+            "base_resume_path": self.base_resume_path,
+            "output_dir": self.output_dir,
+            "custom_boards": self.custom_boards,
+        }
+
+    def to_json(self, indent: int = 2) -> str:
+        return json.dumps(self.to_dict(), indent=indent)
+
+    def save_file(self, path: Union[str, Path]) -> None:
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(self.to_json(), encoding="utf-8")
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HunterPreferences":
+        roles = data.get("roles") or ([] if not data.get("role") else [str(data.get("role"))])
+        locations = data.get("locations") or ([] if not data.get("location") else [str(data.get("location"))])
+        return cls(
+            roles=roles,
+            locations=locations,
+            seniority=data.get("seniority", "all"),
+            min_experience_years=data.get("min_experience_years"),
+            max_experience_years=data.get("max_experience_years"),
+            grad_year=data.get("grad_year"),
+            exclude_titles=data.get("exclude_titles") or [],
+            exclude_keywords=data.get("exclude_keywords") or [],
+            remote_only=bool(data.get("remote_only", False)),
+            base_resume_path=data.get("base_resume_path"),
+            output_dir=data.get("output_dir", "output/hunt"),
+            custom_boards=data.get("custom_boards") or {},
+        )
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "HunterPreferences":
+        return cls.from_dict(json.loads(json_str))
+
+    @classmethod
+    def load_file(cls, path: Union[str, Path]) -> "HunterPreferences":
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Preferences profile not found: {path}")
+        return cls.from_json(p.read_text(encoding="utf-8"))
+
+    @classmethod
+    def load_default(cls) -> "HunterPreferences":
+        candidates = [
+            Path("resume-forge.config.json"),
+            Path(".resumeforge.json"),
+            Path.home() / ".config" / "resume-forge" / "preferences.json"
+        ]
+        for c in candidates:
+            if c.exists():
+                try:
+                    return cls.load_file(c)
+                except Exception:
+                    pass
+        return cls()
 
 
 DEFAULT_HEADERS = {
@@ -124,23 +215,126 @@ def _match_location(job_location_str: str, target_location: str) -> bool:
     return False
 
 
-def _match_role(title: str, role_query: str) -> bool:
-    """Matches role query tokens against job title, enforcing seniority guardrails for early-career queries."""
-    if not role_query:
-        return True
+def _match_seniority(title: str, target_seniority: str = "all", role_query: str = "") -> bool:
+    """Matches role title against target seniority level, preventing title mismatch false positives."""
+    sen = (target_seniority or "all").lower().strip()
     title_lower = title.lower()
-    query_lower = role_query.lower()
+    query_lower = (role_query or "").lower()
 
-    # If the candidate queries for early-career roles (intern, student, graduate, junior),
-    # block false positives with Senior, Staff, Principal, or Lead titles.
-    is_early_career = any(k in query_lower for k in ("intern", "student", "graduate", "junior", "entry", "early career", "co-op", "trainee"))
-    has_senior_in_query = any(k in query_lower for k in ("senior", "sr", "staff", "principal", "lead", "manager"))
-    if is_early_career and not has_senior_in_query:
+    if sen == "all":
+        # If the candidate queries for early-career terms without senior terms, apply safe default
+        is_early_career = any(k in query_lower for k in ("intern", "student", "graduate", "junior", "entry", "early career", "co-op", "trainee"))
+        has_senior_in_query = any(k in query_lower for k in ("senior", "sr", "staff", "principal", "lead", "manager"))
+        if is_early_career and not has_senior_in_query:
+            if re.search(r'\b(senior|sr\b|sr\.|staff|principal|lead|director|manager|vp|head\s+of)\b', title_lower):
+                return False
+        return True
+
+    if sen in ("intern", "internship", "co-op"):
         if re.search(r'\b(senior|sr\b|sr\.|staff|principal|lead|director|manager|vp|head\s+of)\b', title_lower):
             return False
+        return True
+
+    if sen in ("entry", "junior"):
+        if re.search(r'\b(senior|sr\b|sr\.|staff|principal|lead|director|manager|vp|head\s+of)\b', title_lower):
+            return False
+        return True
+
+    if sen in ("mid", "intermediate"):
+        if re.search(r'\b(intern|internship|co-op|student|director|vp|chief)\b', title_lower):
+            return False
+        return True
+
+    if sen in ("senior", "sr"):
+        if re.search(r'\b(intern|internship|co-op|junior|jr\b|jr\.|entry|student|associate)\b', title_lower):
+            return False
+        return True
+
+    if sen in ("staff", "principal"):
+        if re.search(r'\b(intern|internship|co-op|junior|jr\b|jr\.|entry|student|associate)\b', title_lower):
+            return False
+        return True
+
+    if sen in ("lead", "manager", "director"):
+        if re.search(r'\b(intern|internship|co-op|junior|jr\b|jr\.|student)\b', title_lower):
+            return False
+        return True
+
+    return True
+
+
+def _match_role(title: str,
+                role_query: str = "",
+                seniority: str = "all",
+                exclude_titles: Optional[List[str]] = None) -> bool:
+    """Matches role query tokens and seniority level against job title."""
+    title_lower = title.lower()
+
+    # User-defined title exclusions
+    if exclude_titles:
+        for excl in exclude_titles:
+            excl_tok = excl.strip().lower()
+            if excl_tok and excl_tok in title_lower:
+                return False
+
+    # Seniority guardrail
+    if not _match_seniority(title, seniority, role_query):
+        return False
+
+    if not role_query:
+        return True
 
     tokens = [tok.strip().lower() for tok in role_query.split() if tok.strip()]
     return all(tok in title_lower for tok in tokens)
+
+
+def _match_experience(description: str,
+                      min_exp: Optional[int] = None,
+                      max_exp: Optional[int] = None) -> bool:
+    """Verifies that job description requirements align with user experience preferences."""
+    if not description or (min_exp is None and max_exp is None):
+        return True
+
+    exp_matches = re.findall(
+        r'\b(\d{1,2})\+?\s*(?:-\s*(\d{1,2})\s*)?years?(?:\s+of)?\s+experience\b',
+        description,
+        re.IGNORECASE
+    )
+    if not exp_matches:
+        return True
+
+    for low_str, high_str in exp_matches:
+        low = int(low_str)
+        high = int(high_str) if high_str else low
+        if max_exp is not None and low > max_exp:
+            return False
+        if min_exp is not None and high < min_exp:
+            return False
+    return True
+
+
+def _match_grad_year(title: str, description: str, target_year: Optional[int]) -> bool:
+    """Matches target graduation cohort year without restricting to arbitrary decades."""
+    if not target_year:
+        return True
+    cohort_text = f"{title} {description[:1000]}"
+    cohort_mentions = re.findall(
+        r'\b(?:class of|graduating|cohort|batch|graduation(?:\s+date)?)\s*(?:in\s*|between\s*|:\s*)?(20\d{2})(?:\s*(?:-|–|to|and|or)\s*(20\d{2}))?\b',
+        cohort_text,
+        re.IGNORECASE
+    )
+    if not cohort_mentions:
+        return True
+    supported_years = set()
+    for y1, y2 in cohort_mentions:
+        if y1:
+            supported_years.add(int(y1))
+        if y2:
+            supported_years.add(int(y2))
+            if y1:
+                for yr in range(int(y1), int(y2) + 1):
+                    supported_years.add(yr)
+    return target_year in supported_years
 
 
 class BaseATSProvider:
@@ -526,14 +720,201 @@ class WorkdayProvider(BaseATSProvider):
         return postings
 
 
+class AikyamProvider(BaseATSProvider):
+    """Direct Aikyam Jobs API provider (aikyamjobs.org)."""
+    name = "aikyam"
+
+    def __init__(self, base_url: str = "https://aikyamjobs.org/api/jobs"):
+        self.base_url = base_url
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        for page in range(1, 4):
+            url = f"{self.base_url}?page={page}&pageSize=50"
+            req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    items = data.get("data", [])
+                    if not items:
+                        break
+                    for item in items:
+                        attrs = item.get("attributes", item)
+                        job_id = str(item.get("id") or attrs.get("id", ""))
+                        title = attrs.get("title") or attrs.get("jobTitle") or ""
+                        slug = attrs.get("slug") or ""
+
+                        org_data = attrs.get("organization") or attrs.get("company") or {}
+                        if isinstance(org_data, dict):
+                            org_attrs = org_data.get("data", {}).get("attributes", org_data) if isinstance(org_data.get("data"), dict) else org_data
+                            company = org_attrs.get("name") or org_attrs.get("title") or "Aikyam Partner"
+                        elif isinstance(org_data, str):
+                            company = org_data
+                        else:
+                            company = "Aikyam Partner"
+
+                        loc_str = attrs.get("location") or attrs.get("city") or "India"
+                        desc = _clean_html(attrs.get("jobDescription") or attrs.get("description") or "")
+                        apply_url = attrs.get("applyUrl") or (f"https://aikyamjobs.org/jobs/{slug}" if slug else "https://aikyamjobs.org")
+                        direct_url = f"https://aikyamjobs.org/jobs/{slug}" if slug else "https://aikyamjobs.org"
+
+                        # Location matching
+                        if not _match_location(loc_str, location):
+                            continue
+
+                        # Role matching
+                        if not _match_role(title, role):
+                            continue
+
+                        postings.append(JobPosting(
+                            id=job_id or slug,
+                            title=title,
+                            company=company,
+                            ats_type="aikyam",
+                            location=loc_str,
+                            url=direct_url,
+                            apply_url=apply_url,
+                            description=desc
+                        ))
+                        if len(postings) >= limit:
+                            return postings
+                    if len(items) < 50:
+                        break
+            except Exception:
+                break
+        return postings
+
+
+class HNHiringProvider(BaseATSProvider):
+    """Hacker News / Y Combinator 'Who is hiring?' public Algolia API provider."""
+    name = "hn"
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        story_url = "https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&query=Who%20is%20hiring&hitsPerPage=1"
+        try:
+            req = urllib.request.Request(story_url, headers=DEFAULT_HEADERS)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                hits = data.get("hits", [])
+                if not hits:
+                    return postings
+                story_id = hits[0].get("objectID")
+
+            if not story_id:
+                return postings
+
+            comments_url = f"https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_{story_id}&hitsPerPage=200"
+            req2 = urllib.request.Request(comments_url, headers=DEFAULT_HEADERS)
+            with urllib.request.urlopen(req2, timeout=10) as resp2:
+                cdata = json.loads(resp2.read().decode("utf-8"))
+                comments = cdata.get("hits", [])
+                for comment in comments:
+                    raw_text = comment.get("comment_text", "")
+                    clean_text = _clean_html(raw_text)
+                    if not clean_text:
+                        continue
+                    first_line = clean_text.split(".")[0].split("\n")[0]
+                    parts = [p.strip() for p in first_line.split("|") if p.strip()]
+
+                    company = parts[0] if parts else "YC Startup"
+                    title = parts[1] if len(parts) > 1 else "Software Engineer"
+                    loc_str = parts[2] if len(parts) > 2 else "Remote / Flexible"
+
+                    if not _match_role(title, role) and not _match_role(clean_text[:300], role):
+                        continue
+                    if not _match_location(f"{loc_str} {clean_text[:400]}", location):
+                        continue
+
+                    url_match = re.search(r'https?://[^\s<>"]+', clean_text)
+                    direct_url = f"https://news.ycombinator.com/item?id={comment.get('objectID')}"
+                    apply_url = url_match.group(0) if url_match else direct_url
+
+                    postings.append(JobPosting(
+                        id=str(comment.get("objectID")),
+                        title=title,
+                        company=company,
+                        ats_type="hn",
+                        location=loc_str,
+                        url=direct_url,
+                        apply_url=apply_url,
+                        description=clean_text
+                    ))
+                    if len(postings) >= limit:
+                        break
+        except Exception:
+            pass
+        return postings
+
+
+class RSSFeedProvider(BaseATSProvider):
+    """Generic XML RSS 2.0 / Atom job feed provider."""
+    name = "rss"
+
+    def __init__(self, feed_url: str, feed_name: str = "RSS Feed"):
+        self.feed_url = feed_url
+        self.feed_name = feed_name
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        import xml.etree.ElementTree as ET
+        postings = []
+        try:
+            req = urllib.request.Request(self.feed_url, headers=DEFAULT_HEADERS)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                xml_data = resp.read()
+            root = ET.fromstring(xml_data)
+
+            items = root.findall(".//item")
+            if not items:
+                items = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                is_atom = True
+            else:
+                is_atom = False
+
+            for item in items:
+                if is_atom:
+                    title = item.findtext("{http://www.w3.org/2005/Atom}title") or ""
+                    link_el = item.find("{http://www.w3.org/2005/Atom}link")
+                    link = link_el.get("href", "") if link_el is not None else ""
+                    desc = _clean_html(item.findtext("{http://www.w3.org/2005/Atom}content") or item.findtext("{http://www.w3.org/2005/Atom}summary") or "")
+                    job_id = item.findtext("{http://www.w3.org/2005/Atom}id") or link
+                else:
+                    title = item.findtext("title") or ""
+                    link = item.findtext("link") or ""
+                    desc = _clean_html(item.findtext("description") or "")
+                    job_id = item.findtext("guid") or link
+
+                loc_text = f"{title} {desc[:300]}"
+                if not _match_location(loc_text, location):
+                    continue
+                if not _match_role(title, role):
+                    continue
+
+                postings.append(JobPosting(
+                    id=job_id,
+                    title=title,
+                    company=self.feed_name,
+                    ats_type="rss",
+                    location=location or "Remote / Unspecified",
+                    url=link,
+                    apply_url=link,
+                    description=desc
+                ))
+                if len(postings) >= limit:
+                    break
+        except Exception:
+            pass
+        return postings
+
+
 class JobHunter:
     """Orchestrates multi-ATS polling, keyword scoring, and single-page resume pairing."""
 
     # Default discoverable company boards for multi-board search
-    POPULAR_GREENHOUSE_BOARDS = ["canonical", "figma", "stripe", "databricks"]
+    POPULAR_GREENHOUSE_BOARDS = ["canonical", "figma", "stripe", "databricks", "vercel", "brex", "scaleai"]
     POPULAR_LEVER_BOARDS = ["palantir"]
     POPULAR_SMARTRECRUITERS_BOARDS = ["cern", "boschgroup"]
-    POPULAR_ASHBY_BOARDS = ["linear", "ramp", "cursor", "supabase", "modal"]
+    POPULAR_ASHBY_BOARDS = ["linear", "ramp", "cursor", "supabase", "modal", "retool", "posthog"]
     POPULAR_WORKDAY_BOARDS = ["redhat", "samsung"]
 
     def __init__(self,
@@ -545,7 +926,8 @@ class JobHunter:
                  limit: int = 5,
                  compile_resumes: bool = False,
                  base_resume_path: Optional[str] = None,
-                 output_dir: str = "output/hunt"):
+                 output_dir: str = "output/hunt",
+                 rss_url: Optional[str] = None):
         self.company = (company or "").strip()
         self.provider = (provider or "all").lower().strip()
         self.role = (role or "").strip()
@@ -556,6 +938,7 @@ class JobHunter:
         self.base_resume_path = base_resume_path or self._detect_default_resume()
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.rss_url = rss_url
 
     def _detect_default_resume(self) -> str:
         for candidate in ["resume.tex", "resume.json", "examples/resume.tex", "variants/canonical.tex"]:
@@ -568,7 +951,12 @@ class JobHunter:
         p_target = self.provider
         comp = self.company.lower()
 
-        # If user targeted a specific company
+        # If custom RSS feed is passed
+        if self.rss_url:
+            providers.append(RSSFeedProvider(self.rss_url, self.company or "RSS Feed"))
+            return providers
+
+        # If user targeted a specific company or source
         if comp and comp != "all":
             if comp == "amazon":
                 providers.append(AmazonProvider())
@@ -576,6 +964,10 @@ class JobHunter:
                 providers.append(SmartRecruitersProvider("BoschGroup", "Bosch Group"))
             elif comp in ("samsung", "sec"):
                 providers.append(WorkdayProvider("samsung", company_name="Samsung Electronics"))
+            elif comp in ("aikyam", "aikyamjobs"):
+                providers.append(AikyamProvider())
+            elif comp in ("hn", "yc", "hnhiring"):
+                providers.append(HNHiringProvider())
             elif p_target == "smartrecruiters" or comp in self.POPULAR_SMARTRECRUITERS_BOARDS:
                 providers.append(SmartRecruitersProvider(comp, comp.upper()))
             elif p_target == "workday" or comp in self.POPULAR_WORKDAY_BOARDS:
@@ -594,6 +986,15 @@ class JobHunter:
         # Global multi-provider search across configured ATS platforms
         if p_target in ("all", "amazon"):
             providers.append(AmazonProvider())
+
+        if p_target in ("all", "aikyam"):
+            providers.append(AikyamProvider())
+
+        if p_target in ("all", "hn", "yc", "hnhiring"):
+            providers.append(HNHiringProvider())
+
+        if p_target == "rss":
+            providers.append(RSSFeedProvider("https://remoteok.com/remote-jobs.rss", "RemoteOK"))
 
         if p_target in ("all", "smartrecruiters"):
             for c in self.POPULAR_SMARTRECRUITERS_BOARDS:
