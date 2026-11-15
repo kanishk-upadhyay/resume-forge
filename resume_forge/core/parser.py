@@ -533,15 +533,55 @@ class LatexResumeParser:
             uname = clean_latex(gl_match.group(1)).strip()
             basics.profiles.append(Profile(network="GitLab", username=uname, url=f"https://gitlab.com/{uname}"))
 
-        # 5. Location heuristics - search after \begin{document}
-        doc_body = self.cleaned.split(r"\begin{document}")[-1] if r"\begin{document}" in self.cleaned else self.cleaned
-        loc_matches = re.finditer(r'([A-Za-z\s]+,\s*[A-Za-z\s]+(?:\s*\d{5,6})?)', doc_body[:1500])
-        for match in loc_matches:
-            candidate_loc = clean_latex(match.group(1)).strip()
-            # Verify candidate matches typical city/country indicators or is under the header
-            if any(c in candidate_loc.lower() for c in ("bhopal", "india", "san francisco", "new york", "london", "bangalore", "delhi", "berlin", "geneva", "cern", "remote", "usa", "ca", "uk", "germany", "switzerland")):
-                basics.location = Location(city=candidate_loc)
-                break
+        # 5. Location extraction (macros or header text heuristics)
+        loc_macro = re.search(r'\\(?:location|address|city)\{([^}]+)\}', self.cleaned)
+        if loc_macro:
+            basics.location = Location(city=clean_latex(loc_macro.group(1)).strip())
+        else:
+            doc_body = self.cleaned.split(r"\begin{document}")[-1] if r"\begin{document}" in self.cleaned else self.cleaned
+            header_area = re.split(r'\\(?:section|cvsection)\*?\{', doc_body)[0]
+
+            forbidden_terms = {
+                "documentclass", "usepackage", "begin", "end", "section", "small", "large",
+                "textbf", "textit", "href", "selectfont", "fontsize", "tabular", "pagestyle",
+                "center", "ragged", "color", "vspace", "hspace", "rule", "setlength"
+            }
+
+            state_and_country_tokens = {
+                # 2-letter state / province codes
+                "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id", "il",
+                "in", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt",
+                "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri",
+                "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv", "wi", "wy", "dc",
+                "on", "bc", "qc", "ab", "mb", "sk", "ns", "nb", "nsw", "vic", "qld",
+                # Countries & regions
+                "india", "usa", "us", "united states", "uk", "united kingdom", "canada",
+                "germany", "switzerland", "france", "australia", "japan", "singapore",
+                "netherlands", "sweden", "spain", "italy", "brazil", "ireland", "remote"
+            }
+
+            # Search header area first, then fall back to initial document body
+            search_targets = [header_area, doc_body[:1500]]
+            found_location = False
+            for target_text in search_targets:
+                if found_location:
+                    break
+                loc_matches = re.finditer(r'([A-Za-z\s\.\-]{2,35},\s*[A-Za-z\s\.\-]{2,35}(?:\s*\d{5,6})?)', target_text)
+                for match in loc_matches:
+                    candidate_loc = clean_latex(match.group(1)).strip()
+                    parts = [p.strip().lower() for p in candidate_loc.split(",") if p.strip()]
+                    if len(parts) >= 2:
+                        city_part, region_part = parts[0], parts[1]
+                        # Reject if any part contains LaTeX keywords
+                        if any(term in candidate_loc.lower() for term in forbidden_terms):
+                            continue
+                        # Valid if region matches known state/country token OR occurs on a contact line
+                        is_valid_region = any(tok in region_part or region_part == tok for tok in state_and_country_tokens)
+                        is_contact_line = any(sep in target_text for sep in ("$|$", "$|", "$ \\cdot $", "$\\cdot$", "•", "|"))
+                        if is_valid_region or (is_contact_line and len(city_part) >= 2 and len(region_part) >= 2):
+                            basics.location = Location(city=candidate_loc)
+                            found_location = True
+                            break
 
         return basics
 

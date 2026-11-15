@@ -2,15 +2,14 @@
 
 let currentResume = {
   basics: {
-    name: "Kanishk Upadhyay",
-    email: "kanishkupadhyay22@gmail.com",
-    phone: "+91 7772034062",
-    location: { city: "Bhopal, India" },
-    url: "https://kanishk.pages.dev/treasures",
+    name: "Alex Morgan",
+    email: "alex.morgan@example.com",
+    phone: "+1 (555) 019-2834",
+    location: { city: "San Francisco, CA" },
+    url: "https://alexmorgan.dev",
     profiles: [
-      { network: "GitHub", url: "https://github.com/kanishk-upadhyay" },
-      { network: "GitLab", url: "https://gitlab.com/kanishk0" },
-      { network: "LinkedIn", url: "https://linkedin.com/in/kanishk22" }
+      { network: "GitHub", url: "https://github.com/alexmorgan" },
+      { network: "LinkedIn", url: "https://linkedin.com/in/alexmorgan" }
     ]
   },
   education: [],

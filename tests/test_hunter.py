@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 
 from resume_forge.core.hunter import (
-    JobHunter, JobPosting, HunterPreferences, AmazonProvider, SmartRecruitersProvider,
+    JobHunter, JobPosting, HunterPreferences, BaseATSProvider, ATSProviderRegistry,
+    AmazonProvider, SmartRecruitersProvider,
     GreenhouseProvider, LeverProvider, AshbyProvider, WorkdayProvider,
     AikyamProvider, HNHiringProvider, RSSFeedProvider, _clean_html,
     _match_seniority, _match_experience, _match_role
@@ -409,6 +410,102 @@ class TestJobHunter(unittest.TestCase):
             postings = hunter.hunt()
             self.assertEqual(len(postings), 1)
             self.assertEqual(postings[0].id, "2002")
+
+    def test_ats_provider_registry_and_custom_provider_plugin(self):
+        """Verifies third-party or custom ATS providers can be registered dynamically via plugin architecture."""
+        class MockCustomATSProvider(BaseATSProvider):
+            name = "customats"
+            def fetch_jobs(self, role="", location="", limit=10):
+                return [
+                    JobPosting(
+                        id="custom_999",
+                        title="Embedded Systems Architect",
+                        company="CustomCorp",
+                        ats_type="customats",
+                        location="Remote",
+                        url="https://customcorp.example/jobs/999",
+                        apply_url="https://customcorp.example/jobs/999/apply",
+                        description="Kernel driver development and RTOS firmware."
+                    )
+                ]
+
+        # Register plugin provider
+        JobHunter.register_provider("customats", MockCustomATSProvider, aliases=["custom_ats_alias"])
+        self.assertTrue(ATSProviderRegistry.is_registered("customats"))
+        self.assertTrue(ATSProviderRegistry.is_registered("custom_ats_alias"))
+        self.assertIs(ATSProviderRegistry.get("custom_ats_alias"), MockCustomATSProvider)
+
+        # Run JobHunter targeting the custom provider
+        hunter = JobHunter(provider="customats")
+        postings = hunter.hunt()
+        self.assertEqual(len(postings), 1)
+        self.assertEqual(postings[0].id, "custom_999")
+        self.assertEqual(postings[0].ats_type, "customats")
+
+    def test_require_keywords_filtering(self):
+        """Verifies require_keywords ensures only postings containing all required keywords pass."""
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({
+                "jobs": [
+                    {
+                        "title": "Software Engineer",
+                        "id_icims": "3001",
+                        "job_path": "/jobs/3001",
+                        "location": "US",
+                        "description": "Requires deep expertise in Python and Kubernetes.",
+                        "basic_qualifications": ""
+                    },
+                    {
+                        "title": "Software Engineer",
+                        "id_icims": "3002",
+                        "job_path": "/jobs/3002",
+                        "location": "US",
+                        "description": "Requires Java and AWS microservices experience.",
+                        "basic_qualifications": ""
+                    }
+                ]
+            }).encode("utf-8")
+            mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+            hunter = JobHunter(company="amazon", require_keywords=["python", "kubernetes"])
+            postings = hunter.hunt()
+            self.assertEqual(len(postings), 1)
+            self.assertEqual(postings[0].id, "3001")
+
+    def test_custom_filter_hooks_pipeline(self):
+        """Verifies users can attach arbitrary predicate filter hooks to JobHunter."""
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({
+                "jobs": [
+                    {
+                        "title": "Staff Infrastructure Engineer",
+                        "id_icims": "4001",
+                        "job_path": "/jobs/4001",
+                        "location": "US",
+                        "description": "Cloud infra and distributed systems.",
+                        "basic_qualifications": ""
+                    },
+                    {
+                        "title": "Junior Backend Developer",
+                        "id_icims": "4002",
+                        "job_path": "/jobs/4002",
+                        "location": "US",
+                        "description": "Build internal tools with Python.",
+                        "basic_qualifications": ""
+                    }
+                ]
+            }).encode("utf-8")
+            mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+            hunter = JobHunter(company="amazon")
+            # Custom filter hook: only accept titles starting with 'Staff'
+            hunter.add_filter(lambda p: p.title.startswith("Staff"))
+
+            postings = hunter.hunt()
+            self.assertEqual(len(postings), 1)
+            self.assertEqual(postings[0].id, "4001")
 
 
 if __name__ == "__main__":

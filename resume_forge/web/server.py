@@ -13,7 +13,7 @@ from ..core.parser import LatexResumeParser
 from ..core.exporter import ResumeExporter
 from ..core.compiler import ResumeCompiler
 from ..core.ats import ATSAnalyzer
-from ..core.schema import ResumeData
+from ..core.schema import ResumeData, Basics, Location, Profile, EducationItem, WorkItem, SkillItem
 from ..core.letter import CoverLetterData
 from ..core.diff import ResumeDiffEngine
 from ..core.fetcher import fetch_job_description
@@ -76,6 +76,51 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(resp_bytes)
 
+    def _get_generic_sample_data(self) -> ResumeData:
+        """Constructs a realistic, generic sample resume data object."""
+        return ResumeData(
+            basics=Basics(
+                name="Alex Morgan",
+                email="alex.morgan@example.com",
+                phone="+1 (555) 019-2834",
+                location=Location(city="San Francisco, CA"),
+                url="https://alexmorgan.dev",
+                summary="Full-stack and systems engineer specialized in distributed systems, high-concurrency microservices, and reliable cloud architectures.",
+                profiles=[
+                    Profile(network="GitHub", url="https://github.com/alexmorgan"),
+                    Profile(network="LinkedIn", url="https://linkedin.com/in/alexmorgan")
+                ]
+            ),
+            education=[
+                EducationItem(
+                    institution="University of California, Berkeley",
+                    study_type="Bachelor of Science",
+                    area="Computer Science",
+                    start_date="2020",
+                    end_date="2024",
+                    highlights=["Graduated with High Distinction (GPA: 3.9/4.0)"]
+                )
+            ],
+            work=[
+                WorkItem(
+                    name="CloudScale Technologies",
+                    position="Software Engineer Intern",
+                    location="San Francisco, CA",
+                    start_date="Jun 2023",
+                    end_date="Dec 2023",
+                    highlights=[
+                        "Engineered high-throughput event streaming services handling 100k+ messages/sec using Go and Kafka.",
+                        "Optimized relational query execution plans, reducing p99 latency from 180ms to 42ms.",
+                        "Architected automated CI/CD canary release pipelines with zero deployment downtime."
+                    ]
+                )
+            ],
+            skills=[
+                SkillItem(category="Languages", keywords=["Go", "Python", "Rust", "TypeScript", "SQL"]),
+                SkillItem(category="Infrastructure", keywords=["Kubernetes", "Docker", "AWS", "Terraform", "PostgreSQL"])
+            ]
+        )
+
     def _handle_get_sample(self, template_name: str = "cern"):
         tmpl = TemplateRegistry.get(template_name)
         sample_path = TEMPLATES_DIR / f"{tmpl.name}.tex"
@@ -88,7 +133,9 @@ class StudioRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = parser.parse()
             self._send_json({"latex": tex, "resume": data.to_dict(), "template": tmpl.name})
         else:
-            self._send_json({"error": "Sample template not found"}, 404)
+            sample_data = self._get_generic_sample_data()
+            tex = tmpl.render_latex(sample_data)
+            self._send_json({"latex": tex, "resume": sample_data.to_dict(), "template": tmpl.name})
 
     def _handle_parse(self, req_data: Dict[str, Any]):
         raw_input = req_data.get("latex") or req_data.get("raw") or ""

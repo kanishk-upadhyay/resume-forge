@@ -201,7 +201,8 @@ Sincerely, \\ Grace Hopper
                 "-s", "senior",
                 "--min-exp", "5",
                 "--max-exp", "10",
-                "--exclude-titles", "manager,director"
+                "--exclude-titles", "manager,director",
+                "--require-keywords", "python,fastapi"
             ]):
                 with patch('sys.stdout', new=StringIO()) as fake_out:
                     main()
@@ -212,6 +213,7 @@ Sincerely, \\ Grace Hopper
             self.assertEqual(saved_data["seniority"], "senior")
             self.assertEqual(saved_data["min_experience_years"], 5)
             self.assertIn("manager", saved_data["exclude_titles"])
+            self.assertIn("python", saved_data["require_keywords"])
 
             # 2. Run hunt using saved profile
             from unittest.mock import MagicMock

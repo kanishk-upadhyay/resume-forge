@@ -357,6 +357,7 @@ def cmd_hunt(args):
 
     exclude_titles = [t.strip() for t in getattr(args, "exclude_titles", "").split(",") if t.strip()]
     exclude_keywords = [k.strip() for k in getattr(args, "exclude_keywords", "").split(",") if k.strip()]
+    require_keywords = [k.strip() for k in getattr(args, "require_keywords", "").split(",") if k.strip()]
 
     # If user wants to save profile preferences
     save_target = getattr(args, "save_profile", None)
@@ -370,6 +371,7 @@ def cmd_hunt(args):
             grad_year=args.grad_year if args.grad_year is not None else prefs.grad_year,
             exclude_titles=exclude_titles or prefs.exclude_titles,
             exclude_keywords=exclude_keywords or prefs.exclude_keywords,
+            require_keywords=require_keywords or prefs.require_keywords,
             base_resume_path=args.base_resume or prefs.base_resume_path,
             output_dir=args.output_dir or prefs.output_dir,
             custom_boards=custom_boards or prefs.custom_boards
@@ -416,6 +418,7 @@ def cmd_hunt(args):
         max_experience_years=getattr(args, "max_exp", None),
         exclude_titles=exclude_titles,
         exclude_keywords=exclude_keywords,
+        require_keywords=require_keywords,
         custom_boards=custom_boards,
         workday_host=getattr(args, "workday_host", None),
         workday_site=getattr(args, "workday_site", None)
@@ -756,6 +759,7 @@ def main():
     p_hunt.add_argument("--max-exp", type=int, default=None, help="Maximum years of experience allowed in JD (e.g. 2)")
     p_hunt.add_argument("--exclude-titles", default="", help="Comma-separated title keywords to exclude (e.g. 'manager,director')")
     p_hunt.add_argument("--exclude-keywords", default="", help="Comma-separated description keywords to reject (e.g. 'clearance')")
+    p_hunt.add_argument("--require-keywords", "--require-kw", default="", help="Comma-separated keywords that MUST appear in job title or description (e.g. 'python,kubernetes')")
     p_hunt.add_argument("--profile", "--config", help="Path to preferences JSON profile (e.g. 'preferences.json')")
     p_hunt.add_argument("--boards", default="", help="Custom ATS company boards (JSON file path or JSON string mapping platform to companies)")
     p_hunt.add_argument("--workday-host", default=None, help="Custom Workday host domain (e.g. 'nvidia.wd5.myworkdayjobs.com')")

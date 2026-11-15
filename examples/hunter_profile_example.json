@@ -24,6 +24,9 @@
     "security clearance",
     "polygraph"
   ],
+  "require_keywords": [
+    "python"
+  ],
   "remote_only": false,
   "base_resume_path": "examples/resume.tex",
   "output_dir": "output/hunt",
