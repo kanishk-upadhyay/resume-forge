@@ -125,10 +125,20 @@ def _match_location(job_location_str: str, target_location: str) -> bool:
 
 
 def _match_role(title: str, role_query: str) -> bool:
-    """Matches role query tokens against job title."""
+    """Matches role query tokens against job title, enforcing seniority guardrails for early-career queries."""
     if not role_query:
         return True
     title_lower = title.lower()
+    query_lower = role_query.lower()
+
+    # If the candidate queries for early-career roles (intern, student, graduate, junior),
+    # block false positives with Senior, Staff, Principal, or Lead titles.
+    is_early_career = any(k in query_lower for k in ("intern", "student", "graduate", "junior", "entry", "early career", "co-op", "trainee"))
+    has_senior_in_query = any(k in query_lower for k in ("senior", "sr", "staff", "principal", "lead", "manager"))
+    if is_early_career and not has_senior_in_query:
+        if re.search(r'\b(senior|sr\b|sr\.|staff|principal|lead|director|manager|vp|head\s+of)\b', title_lower):
+            return False
+
     tokens = [tok.strip().lower() for tok in role_query.split() if tok.strip()]
     return all(tok in title_lower for tok in tokens)
 
@@ -250,8 +260,8 @@ class SmartRecruitersProvider(BaseATSProvider):
                     if role and not (_match_role(title, role) or _match_role(dept, role)):
                         continue
 
-                    direct_url = f"https://careers.smartrecruiters.com/{self.company_id}/{job_id}"
-                    apply_url = f"https://jobs.smartrecruiters.com/oneclick-ui/company/{self.company_id}/publication/{job_id}?dcr_ci={self.company_id}"
+                    direct_url = f"https://jobs.smartrecruiters.com/{self.company_id}/{job_id}"
+                    apply_url = f"https://jobs.smartrecruiters.com/{self.company_id}/{job_id}"
 
                     postings.append(JobPosting(
                         id=job_id,
@@ -651,6 +661,12 @@ class JobHunter:
                                             supported_years.add(yr)
                             if supported_years and self.grad_year not in supported_years:
                                 continue
+
+                    # Early-career experience guardrail: exclude roles requiring 3+ years of experience
+                    is_early_career = bool(self.grad_year or any(k in self.role.lower() for k in ("intern", "student", "junior", "entry", "graduate")))
+                    if is_early_career and posting.description:
+                        if re.search(r'\b([3-9]|\d{2})\+?\s*(?:-\s*\d+\s*)?years?(?:\s+of)?\s+experience\b', posting.description, re.IGNORECASE):
+                            continue
 
                     # ATS scoring and keyword alignment
                     if base_resume_data and posting.description:
