@@ -287,6 +287,11 @@ def _match_role(title: str,
     if not role_query:
         return True
 
+    # If role_query is "intern", allow early career synonyms like "summer student", "co-op", "internship", "trainee"
+    if role_query.lower() in ("intern", "internship"):
+        if any(term in title_lower for term in ("intern", "internship", "co-op", "student", "trainee", "fellow")):
+            return True
+
     tokens = [tok.strip().lower() for tok in role_query.split() if tok.strip()]
     return all(tok in title_lower for tok in tokens)
 
@@ -431,8 +436,8 @@ class SmartRecruitersProvider(BaseATSProvider):
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
-        params = [f"limit={min(100, max(20, limit * 4))}"]
-        if role:
+        params = ["limit=100"]
+        if role and self.company_id != "CERN":
             params.append(f"q={urllib.request.quote(role)}")
         if location and location.lower() not in ("all", "*", "remote"):
             for loc_part in location.split(","):
@@ -734,67 +739,120 @@ class WorkdayProvider(BaseATSProvider):
 
 
 class AikyamProvider(BaseATSProvider):
-    """Direct Aikyam Jobs API provider (aikyamjobs.org)."""
+    """Direct Aikyam Jobs HTML & Next.js feed provider (aikyamjobs.org)."""
     name = "aikyam"
 
-    def __init__(self, base_url: str = "https://aikyamjobs.org/api/jobs"):
-        self.base_url = base_url
+    def __init__(self, base_url: str = "https://aikyamjobs.org"):
+        self.base_url = base_url.rstrip("/")
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
-        for page in range(1, 4):
-            url = f"{self.base_url}?page={page}&pageSize=50"
-            req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
+        sources = [f"{self.base_url}/tag/internship", f"{self.base_url}/jobs"]
+        seen_slugs = set()
+
+        for source_url in sources:
+            req = urllib.request.Request(source_url, headers=DEFAULT_HEADERS)
             try:
                 with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    items = data.get("data", [])
-                    if not items:
-                        break
-                    for item in items:
-                        attrs = item.get("attributes", item)
-                        job_id = str(item.get("id") or attrs.get("id", ""))
-                        title = attrs.get("title") or attrs.get("jobTitle") or ""
-                        slug = attrs.get("slug") or ""
+                    raw_data = resp.read().decode("utf-8")
 
-                        org_data = attrs.get("organization") or attrs.get("company") or {}
-                        if isinstance(org_data, dict):
-                            org_attrs = org_data.get("data", {}).get("attributes", org_data) if isinstance(org_data.get("data"), dict) else org_data
-                            company = org_attrs.get("name") or org_attrs.get("title") or "Aikyam Partner"
-                        elif isinstance(org_data, str):
-                            company = org_data
+                    # 1. JSON payload support (API or unit test mock)
+                    try:
+                        json_data = json.loads(raw_data)
+                        items = json_data.get("data", [])
+                        if items:
+                            for item in items:
+                                attrs = item.get("attributes", item)
+                                job_id = str(item.get("id") or attrs.get("id", ""))
+                                slug = attrs.get("slug") or ""
+                                dedup_key = job_id or slug
+                                if dedup_key in seen_slugs:
+                                    continue
+                                seen_slugs.add(dedup_key)
+                                title = attrs.get("title") or attrs.get("jobTitle") or ""
+                                org_data = attrs.get("organization") or attrs.get("company") or {}
+                                if isinstance(org_data, dict):
+                                    org_attrs = org_data.get("data", {}).get("attributes", org_data) if isinstance(org_data.get("data"), dict) else org_data
+                                    company = org_attrs.get("name") or org_attrs.get("title") or "Aikyam Partner"
+                                else:
+                                    company = str(org_data) if org_data else "Aikyam Partner"
+                                loc_str = attrs.get("location") or attrs.get("city") or "India"
+                                desc = _clean_html(attrs.get("jobDescription") or attrs.get("description") or "")
+                                apply_url = attrs.get("applyUrl") or (f"{self.base_url}/jobs/{slug}" if slug else self.base_url)
+                                direct_url = f"{self.base_url}/jobs/{slug}" if slug else self.base_url
+                                if not _match_location(loc_str, location):
+                                    continue
+                                if not _match_role(title, role):
+                                    continue
+                                postings.append(JobPosting(
+                                    id=job_id or f"aikyam_{slug}",
+                                    title=title,
+                                    company=company,
+                                    ats_type="aikyam",
+                                    location=loc_str,
+                                    url=direct_url,
+                                    apply_url=apply_url,
+                                    description=desc
+                                ))
+                                if len(postings) >= limit:
+                                    return postings
+                            continue
+                    except Exception:
+                        pass
+
+                    # 2. HTML & Next.js flight feed parser
+                    matches = re.findall(r'href=["\'](/jobs/([a-zA-Z0-9-]+))["\'][^>]*aria-label=["\']([^"\']+)["\']', raw_data)
+                    if not matches:
+                        raw_slugs = set(re.findall(r'/jobs/([a-zA-Z0-9-]+)', raw_data))
+                        matches = [(f"/jobs/{s}", s, s.replace("-", " ").title()) for s in raw_slugs if s not in ("apply", "search", "filter")]
+
+                    for rel_url, slug, label in matches:
+                        if slug in seen_slugs or slug in ("apply", "search", "subscribe", "filter", "login", "register"):
+                            continue
+                        seen_slugs.add(slug)
+
+                        # Label format often: "Role in Location | Company"
+                        parts = [p.strip() for p in label.split("|") if p.strip()]
+                        if len(parts) >= 2:
+                            title_loc = parts[0]
+                            company = parts[1]
                         else:
+                            title_loc = label
                             company = "Aikyam Partner"
 
-                        loc_str = attrs.get("location") or attrs.get("city") or "India"
-                        desc = _clean_html(attrs.get("jobDescription") or attrs.get("description") or "")
-                        apply_url = attrs.get("applyUrl") or (f"https://aikyamjobs.org/jobs/{slug}" if slug else "https://aikyamjobs.org")
-                        direct_url = f"https://aikyamjobs.org/jobs/{slug}" if slug else "https://aikyamjobs.org"
+                        # Parse title and location
+                        if " in " in title_loc:
+                            title_part, loc_part = title_loc.split(" in ", 1)
+                        else:
+                            title_part, loc_part = title_loc, "India / Remote"
 
-                        # Location matching
-                        if not _match_location(loc_str, location):
-                            continue
+                        clean_title = title_part.strip()
+                        clean_loc = loc_part.strip()
 
                         # Role matching
-                        if not _match_role(title, role):
+                        if not _match_role(clean_title, role):
+                            continue
+                        # Location matching
+                        if not _match_location(clean_loc, location):
                             continue
 
+                        full_url = f"{self.base_url}{rel_url}"
+                        apply_url = f"{full_url}/apply"
+
                         postings.append(JobPosting(
-                            id=job_id or slug,
-                            title=title,
+                            id=f"aikyam_{slug}",
+                            title=clean_title,
                             company=company,
                             ats_type="aikyam",
-                            location=loc_str,
-                            url=direct_url,
+                            location=clean_loc,
+                            url=full_url,
                             apply_url=apply_url,
-                            description=desc
+                            description=f"{clean_title} at {company} in {clean_loc}. Curated via Aikyam Jobs."
                         ))
                         if len(postings) >= limit:
                             return postings
-                    if len(items) < 50:
-                        break
             except Exception:
-                break
+                pass
         return postings
 
 
