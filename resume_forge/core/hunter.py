@@ -439,13 +439,11 @@ class SmartRecruitersProvider(BaseATSProvider):
         params = ["limit=100"]
         if role and self.company_id != "CERN":
             params.append(f"q={urllib.request.quote(role)}")
-        if location and location.lower() not in ("all", "*", "remote"):
-            for loc_part in location.split(","):
-                c_clean = loc_part.strip().lower()
-                iso2 = ISO_2_MAP.get(c_clean)
-                if iso2:
-                    params.append(f"country={iso2}")
-                    break
+        # Only pass server-side country filter if a single exact country was requested
+        if location and location.lower() not in ("all", "*", "remote", "worldwide") and "," not in location:
+            iso2 = ISO_2_MAP.get(location.strip().lower())
+            if iso2:
+                params.append(f"country={iso2}")
 
         query_str = f"?{'&'.join(params)}" if params else ""
         url = f"https://api.smartrecruiters.com/v1/companies/{self.company_id}/postings{query_str}"
