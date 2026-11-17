@@ -507,6 +507,61 @@ class TestJobHunter(unittest.TestCase):
             self.assertEqual(len(postings), 1)
             self.assertEqual(postings[0].id, "4001")
 
+    def test_cern_role_matching_early_career(self):
+        """Verifies CERN student and early-career role synonyms match 'intern'."""
+        self.assertTrue(_match_role("CERN Summer Student Programme", "intern"))
+        self.assertTrue(_match_role("CERN OPENLAB Summer Student Programme", "intern"))
+        self.assertTrue(_match_role("Technical Student Programme in IT", "intern"))
+        self.assertTrue(_match_role("Administrative Student", "intern"))
+        self.assertTrue(_match_role("Engineering Co-op", "intern"))
+        self.assertTrue(_match_role("Graduate Trainee", "intern"))
+        self.assertTrue(_match_role("Software Engineer Intern", "student"))
+
+    @patch("urllib.request.urlopen")
+    def test_smartrecruiters_cern_query_params(self, mock_urlopen):
+        """Verifies CERN SmartRecruiters requests enforce limit=100 and suppress country=in & q=."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"content": []}).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_resp
+
+        cern_provider = SmartRecruitersProvider("CERN", "CERN")
+        cern_provider.fetch_jobs(role="intern", location="India", limit=10)
+
+        # Inspect the URL passed to urllib
+        call_args = mock_urlopen.call_args
+        req = call_args[0][0]
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+
+        self.assertIn("limit=100", url)
+        # Verify server-side country filter is suppressed for CERN to avoid 0 results
+        self.assertNotIn("country=in", url)
+        self.assertNotIn("country=IN", url)
+        # Verify q= is suppressed for CERN
+        self.assertNotIn("q=", url)
+
+    def test_ats_registry_plugin_discovery(self):
+        """Verifies drop-in ATS providers in the plugins directory are automatically discovered."""
+        import tempfile
+        from resume_forge.providers.registry import ATSProviderRegistry
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plugin_code = (
+                "from resume_forge.providers.base import BaseATSProvider\n"
+                "class CustomBoardProvider(BaseATSProvider):\n"
+                "    name = 'customboard'\n"
+                "    def fetch_jobs(self, role='', location='', limit=10):\n"
+                "        return []\n"
+            )
+            plugin_file = Path(tmpdir) / "custom_board_plugin.py"
+            plugin_file.write_text(plugin_code, encoding="utf-8")
+
+            with patch("resume_forge.providers.registry.get_plugins_dir", return_value=Path(tmpdir)):
+                ATSProviderRegistry._plugins_loaded = False
+                prov_cls = ATSProviderRegistry.get("customboard")
+                self.assertIsNotNone(prov_cls)
+                self.assertEqual(prov_cls.name, "customboard")
+
+
 
 if __name__ == "__main__":
     unittest.main()

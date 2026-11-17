@@ -18,11 +18,28 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
   "Topic :: Text Processing :: Markup :: LaTeX"
 ]
 
+[project.urls]
+Homepage = "https://github.com/kanishkupadhyay/resume-forge"
+Repository = "https://github.com/kanishkupadhyay/resume-forge"
+Issues = "https://github.com/kanishkupadhyay/resume-forge/issues"
+
 [project.scripts]
 resume-forge = "resume_forge.cli:main"
+
+[project.entry-points."resume_forge.providers"]
+greenhouse = "resume_forge.providers.greenhouse:GreenhouseProvider"
+lever = "resume_forge.providers.lever:LeverProvider"
+smartrecruiters = "resume_forge.providers.smartrecruiters:SmartRecruitersProvider"
+ashby = "resume_forge.providers.ashby:AshbyProvider"
+workday = "resume_forge.providers.workday:WorkdayProvider"
+aikyam = "resume_forge.providers.aikyam:AikyamProvider"
+hackernews = "resume_forge.providers.hackernews:HNHiringProvider"
+amazon = "resume_forge.providers.amazon:AmazonProvider"
+rss = "resume_forge.providers.rss:RSSFeedProvider"
 
 [tool.setuptools.packages.find]
 where = ["."]

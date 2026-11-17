@@ -231,6 +231,80 @@ Sincerely, \\ Grace Hopper
                         out = fake_out.getvalue()
                         self.assertEqual(json.loads(out), [])
 
+    def test_cli_init_non_interactive_tex(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_tex = Path(tmpdir) / "my_resume.tex"
+            profile_json = Path(tmpdir) / "custom_pref.json"
+            with patch.object(sys, 'argv', [
+                "resume-forge", "init",
+                "--non-interactive",
+                "--name", "Ada Lovelace",
+                "--email", "ada@example.com",
+                "--role", "Systems Engineer",
+                "--location", "London, UK",
+                "--seniority", "entry",
+                "-t", "cern",
+                "-o", str(out_tex),
+                "-p", str(profile_json)
+            ]):
+                with patch('sys.stdout', new=StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue()
+                    self.assertIn("SETUP COMPLETE", out)
+
+            self.assertTrue(out_tex.exists())
+            content = out_tex.read_text(encoding="utf-8")
+            self.assertIn("Ada Lovelace", content)
+            self.assertIn(r"\begin{document}", content)
+
+            self.assertTrue(profile_json.exists())
+            p_data = json.loads(profile_json.read_text(encoding="utf-8"))
+            self.assertIn("Systems Engineer", p_data["roles"])
+            self.assertEqual(p_data["seniority"], "entry")
+            self.assertEqual(p_data["base_resume_path"], str(out_tex))
+
+    def test_cli_init_non_interactive_json(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "my_resume.json"
+            profile_json = Path(tmpdir) / "pref.json"
+            with patch.object(sys, 'argv', [
+                "resume-forge", "init",
+                "--non-interactive",
+                "--name", "Grace Hopper",
+                "-f", "json",
+                "-t", "harvard",
+                "-o", str(out_json),
+                "-p", str(profile_json)
+            ]):
+                with patch('sys.stdout', new=StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue()
+                    self.assertIn("SETUP COMPLETE", out)
+
+            self.assertTrue(out_json.exists())
+            data = json.loads(out_json.read_text(encoding="utf-8"))
+            self.assertEqual(data["basics"]["name"], "Grace Hopper")
+
+    def test_cli_init_existing_resume_kept(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_tex = Path(tmpdir) / "existing.tex"
+            out_tex.write_text("% MY CUSTOM PRE-EXISTING RESUME", encoding="utf-8")
+            profile_json = Path(tmpdir) / "pref.json"
+            with patch.object(sys, 'argv', [
+                "resume-forge", "init",
+                "--non-interactive",
+                "-o", str(out_tex),
+                "-p", str(profile_json)
+            ]):
+                with patch('sys.stdout', new=StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue()
+                    self.assertIn("already exists", out)
+
+            # Ensure pre-existing content was NOT overwritten
+            self.assertEqual(out_tex.read_text(encoding="utf-8"), "% MY CUSTOM PRE-EXISTING RESUME")
+
+
 
 if __name__ == "__main__":
     unittest.main()

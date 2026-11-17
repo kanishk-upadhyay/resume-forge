@@ -17,6 +17,8 @@ from .core.hunter import JobHunter, HunterPreferences
 from .core.letter import CoverLetterData, CoverLetterRecipient
 from .core.diff import ResumeDiffEngine
 from .core.fetcher import fetch_job_description
+from .core.schema import Basics, WorkItem, EducationItem, ProjectItem, SkillItem, Location, Profile
+from .config import get_preferences_path, get_config_dir
 from .templates import TemplateRegistry
 from .completion import generate_bash_completion, generate_zsh_completion, generate_fish_completion
 
@@ -622,12 +624,208 @@ def cmd_template(args):
         print(f"Defaults:     font_size={tmpl.default_font_size}pt, line_height={tmpl.default_line_height}, margin={tmpl.default_margin}in\n")
 
 
+def cmd_init(args):
+    """Initializes a new resume-forge workspace or user configuration.
+
+    Generates a starter resume (.tex or .json) and an ATS hunter preferences profile
+    (preferences.json) so any developer can use resume-forge out of the box.
+    """
+    is_interactive = sys.stdin.isatty() and not getattr(args, "non_interactive", False)
+
+    name = getattr(args, "name", "") or "Jane Doe"
+    email = getattr(args, "email", "") or "jane.doe@example.com"
+    role = getattr(args, "role", "") or "Software Engineer"
+    location = getattr(args, "location", "") or "Remote, United States"
+    seniority = getattr(args, "seniority", "") or "all"
+    template = getattr(args, "template", "") or "cern"
+    fmt = getattr(args, "format", "") or "tex"
+
+    if is_interactive:
+        print("\n" + "=" * 70)
+        print("  RESUME FORGE INITIALIZATION WIZARD")
+        print("=" * 70)
+        print("Welcome to resume-forge! Let's set up your starter resume and job hunt profile.")
+        print("Press [Enter] to accept defaults shown in brackets.\n")
+
+        try:
+            val = input(f"Full Name [{name}]: ").strip()
+            if val:
+                name = val
+
+            val = input(f"Email [{email}]: ").strip()
+            if val:
+                email = val
+
+            val = input(f"Primary Target Role [{role}]: ").strip()
+            if val:
+                role = val
+
+            val = input(f"Target Locations (comma-separated) [{location}]: ").strip()
+            if val:
+                location = val
+
+            val = input(f"Seniority Level (all, intern, entry, mid, senior) [{seniority}]: ").strip()
+            if val:
+                seniority = val
+
+            val = input(f"Preferred Template (cern, harvard, jakes, minimalist, quant, awesome, academic) [{template}]: ").strip()
+            if val:
+                template = val.lower()
+
+            val = input(f"Resume File Format (tex, json) [{fmt}]: ").strip()
+            if val:
+                fmt = val.lower()
+        except (KeyboardInterrupt, EOFError):
+            print("\nInitialization cancelled.")
+            sys.exit(0)
+
+    # Validate template
+    valid_templates = [t["name"] for t in TemplateRegistry.list_templates()]
+    if template not in valid_templates:
+        template = "cern"
+
+    # Determine resume output path
+    raw_output = getattr(args, "output", None)
+    if raw_output:
+        resume_path = Path(raw_output)
+    else:
+        ext = "json" if fmt == "json" else "tex"
+        resume_path = Path(f"resume.{ext}")
+
+    # Determine profile path
+    if getattr(args, "profile", None):
+        profile_path = Path(args.profile)
+    elif getattr(args, "local", False):
+        profile_path = Path("preferences.json")
+    else:
+        profile_path = get_preferences_path()
+
+    # Create starter ResumeData
+    loc_parts = [p.strip() for p in location.split(",") if p.strip()]
+    city = loc_parts[0] if loc_parts else "San Francisco"
+    region = loc_parts[1] if len(loc_parts) > 1 else "CA"
+
+    starter_data = ResumeData(
+        basics=Basics(
+            name=name,
+            label=role,
+            email=email,
+            phone="+1 (555) 019-2834",
+            url="https://github.com/example",
+            summary=f"Passionate {role} specializing in distributed systems, high-performance computing, and cloud architectures.",
+            location=Location(city=city, region=region, country_code="US"),
+            profiles=[
+                Profile(network="GitHub", username="example", url="https://github.com/example"),
+                Profile(network="LinkedIn", username="example", url="https://linkedin.com/in/example"),
+            ]
+        ),
+        education=[
+            EducationItem(
+                institution="University of Technology",
+                area="Computer Science",
+                study_type="B.S.",
+                start_date="2020",
+                end_date="2024",
+                score="3.9 / 4.0",
+                highlights=["Dean's Honor List", "Algorithms & Data Structures TA"]
+            )
+        ],
+        work=[
+            WorkItem(
+                name="Acme Corp",
+                position=f"{role}",
+                location=f"{city}, {region}",
+                start_date="Jun 2024",
+                end_date="Present",
+                highlights=[
+                    "Architected high-throughput async data ingestion pipeline processing 10M+ events/day with 99.99% availability.",
+                    "Reduced p99 API latency by 42% through connection pooling and Redis caching optimizations.",
+                    "Spearheaded automated CI/CD deployment workflows, reducing release rollback rates by 35%."
+                ]
+            )
+        ],
+        projects=[
+            ProjectItem(
+                name="Distributed Task Scheduler",
+                description="Fault-tolerant distributed task queue built with Python and Raft consensus.",
+                highlights=[
+                    "Engineered leader election and log replication with sub-50ms heartbeat failover.",
+                    "Benchmarked throughput to 25,000 tasks/sec across a 5-node cluster."
+                ],
+                keywords=["Python", "Distributed Systems", "Raft", "gRPC"],
+                url="https://github.com/example/task-scheduler"
+            )
+        ],
+        skills=[
+            SkillItem(name="Languages", keywords=["Python", "Go", "C++", "SQL", "TypeScript"]),
+            SkillItem(name="Frameworks & Tools", keywords=["FastAPI", "Docker", "Kubernetes", "PostgreSQL", "Redis", "Git"]),
+            SkillItem(name="Systems & Cloud", keywords=["Linux", "AWS", "CI/CD", "Distributed Systems", "Microservices"])
+        ]
+    )
+
+    # Write starter resume if it does not exist (or force is enabled)
+    force = getattr(args, "force", False)
+    if resume_path.exists() and not force:
+        print(f"• Resume file '{resume_path}' already exists (keeping existing file).")
+    else:
+        resume_path.parent.mkdir(parents=True, exist_ok=True)
+        if resume_path.suffix.lower() == ".json" or fmt == "json":
+            resume_path.write_text(starter_data.to_json(indent=2), encoding="utf-8")
+        else:
+            tmpl_obj = TemplateRegistry.get(template)
+            resume_path.write_text(tmpl_obj.render_latex(starter_data), encoding="utf-8")
+        print(f"✓ Created starter resume at '{resume_path}' using template '{template}'.")
+
+    # Save HunterPreferences profile
+    role_list = [r.strip() for r in role.split(",") if r.strip()]
+    loc_list = [l.strip() for l in location.split(",") if l.strip()]
+    pref = HunterPreferences(
+        roles=role_list,
+        locations=loc_list,
+        seniority=seniority,
+        base_resume_path=str(resume_path),
+        output_dir="output/hunt"
+    )
+    pref.save_file(profile_path)
+    print(f"✓ Saved job hunt profile to '{profile_path}'.")
+
+    # Print summary & next steps
+    print("\n" + "=" * 70)
+    print("  SETUP COMPLETE! NEXT STEPS:")
+    print("=" * 70)
+    print(f"  1. Compile single-page PDF:")
+    print(f"     resume-forge compile {resume_path} -o resume.pdf")
+    print(f"  2. Audit ATS compatibility:")
+    print(f"     resume-forge audit {resume_path} --jd \"{role}\"")
+    print(f"  3. Search live jobs & auto-pair tailored resumes:")
+    print(f"     resume-forge hunt")
+    print(f"  4. Launch interactive Web Studio:")
+    print(f"     resume-forge serve")
+    print("=" * 70 + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="resume-forge",
         description="Resume Forge: In-House LaTeX Resume Parser, Studio & Single-Page PDF Compiler"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # init
+    p_init = subparsers.add_parser("init", help="Initialize workspace with starter resume and job hunt preferences profile")
+    p_init.add_argument("-o", "--output", help="Output path for starter resume (default: resume.tex or resume.json)")
+    p_init.add_argument("-t", "--template", default="cern", choices=["cern", "harvard", "jakes", "minimalist", "quant", "awesome", "academic"], help="Starter template style (default: cern)")
+    p_init.add_argument("-f", "--format", choices=["tex", "json"], default="tex", help="Starter resume format: tex or json (default: tex)")
+    p_init.add_argument("-p", "--profile", help="Path to save hunt preferences profile (default: user config dir)")
+    p_init.add_argument("--local", action="store_true", help="Save preferences profile locally in current directory (./preferences.json)")
+    p_init.add_argument("--name", default="", help="Candidate full name")
+    p_init.add_argument("--email", default="", help="Candidate email address")
+    p_init.add_argument("--role", default="", help="Target primary role title")
+    p_init.add_argument("--location", default="", help="Target locations (comma-separated)")
+    p_init.add_argument("--seniority", choices=["all", "intern", "entry", "mid", "senior", "staff", "lead", "manager"], default="all", help="Target seniority level")
+    p_init.add_argument("--non-interactive", action="store_true", help="Run in non-interactive batch mode without prompts")
+    p_init.add_argument("--force", action="store_true", help="Overwrite existing resume file if it already exists")
+    p_init.set_defaults(func=cmd_init)
 
     # parse
     p_parse = subparsers.add_parser("parse", help="Parse LaTeX resume into JSON Resume")

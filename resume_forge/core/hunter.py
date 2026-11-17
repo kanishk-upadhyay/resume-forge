@@ -133,9 +133,12 @@ class HunterPreferences:
 
     @classmethod
     def load_default(cls) -> "HunterPreferences":
+        from ..config import get_preferences_path
         candidates = [
             Path("resume-forge.config.json"),
             Path(".resumeforge.json"),
+            Path("preferences.json"),
+            get_preferences_path(),
             Path.home() / ".config" / "resume-forge" / "preferences.json"
         ]
         for c in candidates:
@@ -287,13 +290,21 @@ def _match_role(title: str,
     if not role_query:
         return True
 
-    # If role_query is "intern", allow early career synonyms like "summer student", "co-op", "internship", "trainee"
-    if role_query.lower() in ("intern", "internship"):
-        if any(term in title_lower for term in ("intern", "internship", "co-op", "student", "trainee", "fellow")):
+    # Early career synonyms mapping (e.g. CERN Summer Student Programme, student, co-op, trainee)
+    early_career_synonyms = ("intern", "internship", "student", "summer student", "co-op", "coop", "trainee", "fellow")
+    if role_query.lower() in ("intern", "internship", "student", "summer student", "co-op", "trainee"):
+        if any(term in title_lower for term in early_career_synonyms):
             return True
 
     tokens = [tok.strip().lower() for tok in role_query.split() if tok.strip()]
-    return all(tok in title_lower for tok in tokens)
+    for tok in tokens:
+        if tok in ("intern", "internship", "student", "trainee", "co-op", "coop", "fellow"):
+            if not any(syn in title_lower for syn in early_career_synonyms):
+                return False
+        else:
+            if tok not in title_lower:
+                return False
+    return True
 
 
 def _match_experience(description: str,
@@ -436,11 +447,12 @@ class SmartRecruitersProvider(BaseATSProvider):
 
     def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
         postings = []
+        is_cern = self.company_id.upper() == "CERN" or "CERN" in self.company_name.upper()
         params = ["limit=100"]
-        if role and self.company_id != "CERN":
+        if role and not is_cern:
             params.append(f"q={urllib.request.quote(role)}")
-        # Only pass server-side country filter if a single exact country was requested
-        if location and location.lower() not in ("all", "*", "remote", "worldwide") and "," not in location:
+        # Only pass server-side country filter if a single exact country was requested and not CERN
+        if not is_cern and location and location.lower() not in ("all", "*", "remote", "worldwide") and "," not in location:
             iso2 = ISO_2_MAP.get(location.strip().lower())
             if iso2:
                 params.append(f"country={iso2}")
@@ -976,42 +988,7 @@ class RSSFeedProvider(BaseATSProvider):
         return postings
 
 
-class ATSProviderRegistry:
-    """Central registry and dispatcher for ATS API providers and job board integrations.
-    
-    Enables third-party plugins, custom ATS providers, and extensions to register
-    new platforms dynamically without modifying core engine logic.
-    """
-
-    _providers: Dict[str, Type[BaseATSProvider]] = {}
-    _aliases: Dict[str, str] = {}
-
-    @classmethod
-    def register(cls, name: str, provider_cls: Type[BaseATSProvider], aliases: Optional[List[str]] = None) -> None:
-        """Registers an ATS provider class under a canonical name and optional aliases."""
-        key = name.lower().strip()
-        cls._providers[key] = provider_cls
-        if aliases:
-            for a in aliases:
-                cls._aliases[a.lower().strip()] = key
-
-    @classmethod
-    def get(cls, name: str) -> Optional[Type[BaseATSProvider]]:
-        """Retrieves an ATS provider class by canonical name or alias."""
-        key = name.lower().strip()
-        canon = cls._aliases.get(key, key)
-        return cls._providers.get(canon)
-
-    @classmethod
-    def list_providers(cls) -> List[str]:
-        """Returns all registered canonical provider names."""
-        return list(cls._providers.keys())
-
-    @classmethod
-    def is_registered(cls, name: str) -> bool:
-        """Checks if a provider name or alias is registered."""
-        key = name.lower().strip()
-        return key in cls._providers or key in cls._aliases
+from ..providers.registry import ATSProviderRegistry
 
 
 # Auto-register standard built-in ATS providers
@@ -1094,7 +1071,8 @@ class JobHunter:
             out_p.mkdir(parents=True, exist_ok=True)
             self.output_dir = out_p
         except OSError:
-            fallback = Path.home() / ".config" / "resume-forge" / "hunt"
+            from ..config import get_default_output_dir
+            fallback = get_default_output_dir() / "hunt"
             fallback.mkdir(parents=True, exist_ok=True)
             self.output_dir = fallback
         self.rss_url = rss_url
