@@ -38,6 +38,14 @@ class TestConfig(unittest.TestCase):
                 cfg = get_config_dir()
                 self.assertEqual(cfg, Path(win_appdata) / "resume-forge")
 
+    def test_get_config_dir_windows_fallback(self):
+        env = dict(os.environ)
+        env.pop("APPDATA", None)
+        with patch.dict(os.environ, env, clear=True):
+            with patch("sys.platform", "win32"):
+                cfg = get_config_dir()
+                self.assertEqual(cfg, Path.home() / "AppData" / "Roaming" / "resume-forge")
+
     def test_get_preferences_path(self):
         local_p = get_preferences_path(local=True)
         self.assertEqual(local_p, Path("preferences.json"))
@@ -53,6 +61,17 @@ class TestConfig(unittest.TestCase):
         out_dir = get_default_output_dir()
         self.assertTrue(out_dir.exists())
         self.assertTrue(out_dir.is_dir())
+
+    def test_get_default_output_dir_fallback(self):
+        real_mkdir = Path.mkdir
+        def fake_mkdir(path_self, *args, **kwargs):
+            if path_self == Path("output"):
+                raise PermissionError("Permission denied")
+            return real_mkdir(path_self, *args, **kwargs)
+
+        with patch.object(Path, "mkdir", side_effect=fake_mkdir, autospec=True):
+            out_dir = get_default_output_dir()
+            self.assertEqual(out_dir, get_config_dir() / "output")
 
 
 if __name__ == "__main__":

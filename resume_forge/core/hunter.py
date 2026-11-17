@@ -269,6 +269,30 @@ def _match_seniority(title: str, target_seniority: str = "all", role_query: str 
     return True
 
 
+def _match_single_role_phrase(title_lower: str, phrase: str, early_career_synonyms) -> bool:
+    phrase_clean = phrase.strip().lower()
+    if not phrase_clean:
+        return True
+
+    if phrase_clean in ("intern", "internship", "student", "summer student", "co-op", "trainee"):
+        if any(term in title_lower for term in early_career_synonyms):
+            return True
+
+    tokens = [tok.strip() for tok in phrase_clean.split() if tok.strip()]
+    for tok in tokens:
+        if tok in ("intern", "internship", "student", "trainee", "co-op", "coop", "fellow"):
+            if not any(syn in title_lower for syn in early_career_synonyms):
+                return False
+        else:
+            if len(tok) <= 2:
+                if not re.search(r'\b' + re.escape(tok) + r'\b', title_lower):
+                    return False
+            else:
+                if tok not in title_lower:
+                    return False
+    return True
+
+
 def _match_role(title: str,
                 role_query: str = "",
                 seniority: str = "all",
@@ -292,19 +316,13 @@ def _match_role(title: str,
 
     # Early career synonyms mapping (e.g. CERN Summer Student Programme, student, co-op, trainee)
     early_career_synonyms = ("intern", "internship", "student", "summer student", "co-op", "coop", "trainee", "fellow")
-    if role_query.lower() in ("intern", "internship", "student", "summer student", "co-op", "trainee"):
-        if any(term in title_lower for term in early_career_synonyms):
-            return True
 
-    tokens = [tok.strip().lower() for tok in role_query.split() if tok.strip()]
-    for tok in tokens:
-        if tok in ("intern", "internship", "student", "trainee", "co-op", "coop", "fellow"):
-            if not any(syn in title_lower for syn in early_career_synonyms):
-                return False
-        else:
-            if tok not in title_lower:
-                return False
-    return True
+    # Support comma-separated role alternatives (OR matching)
+    sub_queries = [sq.strip() for sq in role_query.split(",") if sq.strip()]
+    if not sub_queries:
+        return True
+
+    return any(_match_single_role_phrase(title_lower, sq, early_career_synonyms) for sq in sub_queries)
 
 
 def _match_experience(description: str,
@@ -315,14 +333,22 @@ def _match_experience(description: str,
         return True
 
     exp_matches = re.findall(
-        r'\b(\d{1,2})\+?\s*(?:-\s*(\d{1,2})\s*)?years?(?:\s+of)?\s+experience\b',
+        r'\b(\d{1,2})\+?\s*(?:(?:-|–|to)\s*(\d{1,2})\s*)?(?:years?|yrs?)(?:\s+of)?\s+experience\b',
         description,
         re.IGNORECASE
     )
     if not exp_matches:
+        exp_matches = re.findall(
+            r'\b(?:minimum|at\s+least)?\s*(\d{1,2})\+?\s*(?:(?:-|–|to)\s*(\d{1,2})\s*)?(?:years?|yrs?)(?:\s+(?:in|of)\b)?',
+            description,
+            re.IGNORECASE
+        )
+    if not exp_matches:
         return True
 
     for low_str, high_str in exp_matches:
+        if not low_str:
+            continue
         low = int(low_str)
         high = int(high_str) if high_str else low
         if max_exp is not None and low > max_exp:

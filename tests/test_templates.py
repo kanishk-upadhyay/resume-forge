@@ -186,6 +186,20 @@ class TestTemplateEngine(unittest.TestCase):
         html_quant = exporter.to_html(template="quant")
         self.assertIn("EB Garamond", html_quant)
 
+    def test_empty_resume_data_rendering_all_templates(self):
+        """Verifies that all 7 templates gracefully render empty/minimal resumes without errors."""
+        minimal_data = ResumeData(basics=Basics(name="Minimalist Candidate", email="mini@example.com"))
+        for tmpl_name in TemplateRegistry.get_template_names():
+            tmpl = TemplateRegistry.get(tmpl_name)
+            tex = tmpl.render_latex(minimal_data)
+            self.assertTrue("Candidate" in tex or "CANDIDATE" in tex)
+            self.assertIn("mini@example.com", tex)
+            self.assertIn(r"\begin{document}", tex)
+            html = tmpl.render_html(minimal_data)
+            self.assertTrue("Candidate" in html or "CANDIDATE" in html)
+            self.assertIn("mini@example.com", html)
+            self.assertIn("<!DOCTYPE html>", html)
+
     def test_chrome_single_page_pdf_compilation(self):
         """Compiles sample resume across all 7 templates and guarantees single-page output."""
         compiler = ResumeCompiler()

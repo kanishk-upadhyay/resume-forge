@@ -58,5 +58,8 @@ def get_default_output_dir() -> Path:
     except Exception:
         # Fall back to user configuration directory
         fallback = get_config_dir() / "output"
-        fallback.mkdir(parents=True, exist_ok=True)
+        try:
+            fallback.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
         return fallback

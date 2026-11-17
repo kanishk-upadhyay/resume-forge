@@ -3,6 +3,7 @@
 import unittest
 import tempfile
 import sys
+import os
 import json
 from pathlib import Path
 from io import StringIO
@@ -303,6 +304,94 @@ Sincerely, \\ Grace Hopper
 
             # Ensure pre-existing content was NOT overwritten
             self.assertEqual(out_tex.read_text(encoding="utf-8"), "% MY CUSTOM PRE-EXISTING RESUME")
+
+    def test_cli_init_force_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_tex = Path(tmpdir) / "existing.tex"
+            out_tex.write_text("% PRE-EXISTING", encoding="utf-8")
+            profile_json = Path(tmpdir) / "pref.json"
+            with patch.object(sys, 'argv', [
+                "resume-forge", "init",
+                "--non-interactive",
+                "--force",
+                "--name", "Linus Torvalds",
+                "-o", str(out_tex),
+                "-p", str(profile_json)
+            ]):
+                with patch('sys.stdout', new=StringIO()):
+                    main()
+
+            # Ensure pre-existing content WAS overwritten
+            self.assertIn("Linus Torvalds", out_tex.read_text(encoding="utf-8"))
+
+    def test_cli_init_local_flag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmpdir)
+                out_tex = Path("my_res.tex")
+                with patch.object(sys, 'argv', [
+                    "resume-forge", "init",
+                    "--non-interactive",
+                    "--local",
+                    "-o", str(out_tex)
+                ]):
+                    with patch('sys.stdout', new=StringIO()):
+                        main()
+                local_pref = Path("preferences.json")
+                self.assertTrue(local_pref.exists())
+                p_data = json.loads(local_pref.read_text(encoding="utf-8"))
+                self.assertEqual(p_data["base_resume_path"], "my_res.tex")
+            finally:
+                os.chdir(cwd)
+
+    def test_cli_init_interactive_wizard(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_tex = Path(tmpdir) / "wizard.tex"
+            profile_json = Path(tmpdir) / "wizard_pref.json"
+            inputs = [
+                "Barbara Liskov",       # Full Name
+                "barbara@example.com",  # Email
+                "Distributed Systems",  # Role
+                "Boston, MA",           # Location
+                "senior",               # Seniority
+                "quant",                # Template
+                "tex"                   # Format
+            ]
+            with patch("sys.stdin.isatty", return_value=True):
+                with patch("builtins.input", side_effect=inputs):
+                    with patch.object(sys, 'argv', [
+                        "resume-forge", "init",
+                        "-o", str(out_tex),
+                        "-p", str(profile_json)
+                    ]):
+                        with patch('sys.stdout', new=StringIO()) as fake_out:
+                            main()
+                            out = fake_out.getvalue()
+                            self.assertIn("RESUME FORGE INITIALIZATION WIZARD", out)
+                            self.assertIn("SETUP COMPLETE", out)
+
+            self.assertTrue(out_tex.exists())
+            content = out_tex.read_text(encoding="utf-8")
+            self.assertIn("BARBARA LISKOV", content)
+            self.assertIn("barbara@example.com", content)
+            p_data = json.loads(profile_json.read_text(encoding="utf-8"))
+            self.assertIn("Distributed Systems", p_data["roles"])
+            self.assertEqual(p_data["seniority"], "senior")
+
+    def test_cli_init_interactive_cancelled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_tex = Path(tmpdir) / "wizard.tex"
+            with patch("sys.stdin.isatty", return_value=True):
+                with patch("builtins.input", side_effect=KeyboardInterrupt):
+                    with patch.object(sys, 'argv', ["resume-forge", "init", "-o", str(out_tex)]):
+                        with patch('sys.stdout', new=StringIO()) as fake_out:
+                            with self.assertRaises(SystemExit) as cm:
+                                main()
+                            self.assertEqual(cm.exception.code, 0)
+                            self.assertIn("cancelled", fake_out.getvalue())
+            self.assertFalse(out_tex.exists())
+
 
 
 

@@ -80,7 +80,11 @@ class ATSProviderRegistry:
                         if (isinstance(attr, type) and
                                 issubclass(attr, BaseATSProvider) and
                                 attr is not BaseATSProvider):
-                            prov_name = getattr(attr, "name", p.stem).lower()
+                            attr_name_val = getattr(attr, "name", "")
+                            if not attr_name_val or attr_name_val == "base" or attr_name_val == BaseATSProvider.name:
+                                prov_name = p.stem.lower()
+                            else:
+                                prov_name = attr_name_val.lower()
                             cls.register(prov_name, attr)
             except Exception:
                 pass

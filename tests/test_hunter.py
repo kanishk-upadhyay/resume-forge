@@ -561,6 +561,68 @@ class TestJobHunter(unittest.TestCase):
                 self.assertIsNotNone(prov_cls)
                 self.assertEqual(prov_cls.name, "customboard")
 
+    def test_multi_role_matching_and_word_boundaries(self):
+        """Verifies multi-role comma separated queries and short keyword boundary matching."""
+        # Multi-role OR matching
+        self.assertTrue(_match_role("Software Engineer", "Backend Developer, Software Engineer"))
+        self.assertTrue(_match_role("Backend Developer", "Backend Developer, Software Engineer"))
+        self.assertFalse(_match_role("Data Scientist", "Backend Developer, Software Engineer"))
+
+        # Short keyword boundary matching (prevent substring false positives)
+        self.assertFalse(_match_role("Category Manager", "go"))
+        self.assertFalse(_match_role("Algorithms Developer", "go"))
+        self.assertTrue(_match_role("Go Developer", "go"))
+        self.assertTrue(_match_role("Senior Golang / Go Engineer", "go"))
+
+    def test_experience_matching_variations(self):
+        """Verifies 'to' range, 'yrs' abbreviations, and plus quantifiers."""
+        # "3 to 5 years"
+        jd1 = "Requires 3 to 5 years of experience in distributed systems."
+        self.assertTrue(_match_experience(jd1, min_exp=3, max_exp=5))
+        self.assertFalse(_match_experience(jd1, max_exp=2))
+
+        # "5+ yrs"
+        jd2 = "Must have 5+ yrs experience with Python."
+        self.assertFalse(_match_experience(jd2, max_exp=3))
+        self.assertTrue(_match_experience(jd2, min_exp=5))
+
+        # "1-3 yrs of experience"
+        jd3 = "Seeking developer with 1-3 yrs of experience."
+        self.assertFalse(_match_experience(jd3, min_exp=5))
+
+    def test_plugin_discovery_resilience_to_errors(self):
+        """Verifies registry ignores corrupted plugin files and leading underscore files."""
+        import tempfile
+        from resume_forge.providers.registry import ATSProviderRegistry
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # 1. Broken Python syntax
+            bad_file = Path(tmpdir) / "broken_plugin.py"
+            bad_file.write_text("def syntax_error(:", encoding="utf-8")
+
+            # 2. Private file starting with underscore
+            priv_file = Path(tmpdir) / "_hidden.py"
+            priv_file.write_text("class Hidden: pass", encoding="utf-8")
+
+            # 3. Class without explicit name attribute
+            stem_file = Path(tmpdir) / "stemnamed.py"
+            stem_code = (
+                "from resume_forge.providers.base import BaseATSProvider\n"
+                "class StemClass(BaseATSProvider):\n"
+                "    def fetch_jobs(self, role='', location='', limit=10):\n"
+                "        return []\n"
+            )
+            stem_file.write_text(stem_code, encoding="utf-8")
+
+            with patch("resume_forge.providers.registry.get_plugins_dir", return_value=Path(tmpdir)):
+                ATSProviderRegistry._plugins_loaded = False
+                # Should not crash on broken_plugin.py
+                prov_cls = ATSProviderRegistry.get("stemnamed")
+                self.assertIsNotNone(prov_cls)
+                self.assertIsNone(ATSProviderRegistry.get("broken"))
+                self.assertIsNone(ATSProviderRegistry.get("hidden"))
+
+
 
 
 if __name__ == "__main__":
