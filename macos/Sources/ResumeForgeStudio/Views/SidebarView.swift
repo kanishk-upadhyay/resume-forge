@@ -133,9 +133,10 @@ public struct SidebarView: View {
                 }
 
                 if let msg = dataManager.statusMessage {
+                    let isError = msg.contains("Error") || msg.contains("failed") || msg.contains("❌")
                     Text(msg)
                         .font(.caption2)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(isError ? Color.red : Color.green)
                         .lineLimit(1)
                 }
 

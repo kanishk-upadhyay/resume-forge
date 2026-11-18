@@ -33,7 +33,104 @@ public struct ATSInspectorView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
+                // Error Alert Banner
+                if let err = dataManager.errorMessage {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("ATS Pipeline Notice")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.red)
+                            Text(err)
+                                .font(.caption2)
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Button(action: { dataManager.errorMessage = nil }) {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(10)
+                    .background(Color.red.opacity(0.12))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.3), lineWidth: 1))
+                }
+
+                // Daemon Offline Warning
+                if !dataManager.daemonOnline {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bolt.slash.fill")
+                            .foregroundStyle(.yellow)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Daemon Offline")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                            Text("Tracker daemon (:5999) disconnected.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Reconnect") {
+                            Task {
+                                await dataManager.fetchApplications()
+                                await dataManager.fetchATSScore(for: app)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(10)
+                    .background(Color.yellow.opacity(0.12))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+                }
+
+                // Page Budget Overflow Warning
+                if let budget = atsResult?.page_budget_percent, budget > 105 {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "doc.badge.ellipsis")
+                            .font(.headline)
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Page Overflow Warning (\(budget)%)")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.orange)
+                            Text("Content volume is at \(budget)%. Trim 2-3 bullets to ensure strict 1-page compliance.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.orange.opacity(0.12))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+                }
+
+                // Loading State when no ATS result is available yet
+                if dataManager.isATSLoading && atsResult == nil {
+                    VStack(spacing: 10) {
+                        ProgressView()
+                            .controlSize(.regular)
+                        Text("Auditing ATS Keywords...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(24)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(10)
+                }
+
                 // 1. Radar Score Header Card
                 VStack(spacing: 12) {
                     HStack(spacing: 14) {
