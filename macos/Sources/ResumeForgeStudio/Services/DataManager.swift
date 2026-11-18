@@ -120,15 +120,22 @@ public final class DataManager: ObservableObject {
         }
     }
 
-    public func autoTailor(for app: Application) async {
+    public func autoTailor(for app: Application, injectKeywords: [String]? = nil, customJD: String? = nil) async {
         self.isTailoring = true
-        self.statusMessage = "✨ Auto-tailoring bullets from GitHub & compiling 1-page PDF..."
+        self.statusMessage = "✨ Boosting ATS score & compiling 1-page PDF..."
         let endpoint = baseURL.appendingPathComponent("api/auto_tailor")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let payload = ["id": app.id]
+        var payload: [String: Any] = ["id": app.id]
+        if let kws = injectKeywords, !kws.isEmpty {
+            payload["inject_keywords"] = kws
+        }
+        if let jd = customJD, !jd.isEmpty {
+            payload["job_description"] = jd
+        }
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
             let (data, resp) = try await URLSession.shared.data(for: request)
@@ -136,11 +143,60 @@ public final class DataManager: ObservableObject {
                 let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
                 self.currentATSResult = decoded
                 let timeMs = decoded.compilation_time_ms ?? 0
-                self.statusMessage = "✓ 1-Page PDF Recompiled in \(Double(timeMs) / 1000.0)s!"
+                self.statusMessage = "✓ ATS Score Boosted to \(decoded.match_rate_percent)% in \(Double(timeMs) / 1000.0)s!"
                 await fetchApplications(silent: true)
             }
         } catch {
-            self.statusMessage = "Error tailoring bullets: \(error.localizedDescription)"
+            self.statusMessage = "Error boosting ATS score: \(error.localizedDescription)"
+        }
+        self.isTailoring = false
+    }
+
+    public func injectKeyword(app: Application, keyword: String) async {
+        self.isTailoring = true
+        self.statusMessage = "⚡ Injecting keyword '\(keyword)' & recompiling..."
+        let endpoint = baseURL.appendingPathComponent("api/ats_inject_keyword")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = ["id": app.id, "keyword": keyword]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
+                self.currentATSResult = decoded
+                let timeMs = decoded.compilation_time_ms ?? 0
+                self.statusMessage = "✓ Injected '\(keyword)'! Score: \(decoded.match_rate_percent)% (⚡ \(Double(timeMs) / 1000.0)s)"
+                await fetchApplications(silent: true)
+            }
+        } catch {
+            self.statusMessage = "Failed to inject keyword: \(error.localizedDescription)"
+        }
+        self.isTailoring = false
+    }
+
+    public func updateJobDescription(app: Application, jd: String) async {
+        self.isTailoring = true
+        self.statusMessage = "📝 Applying custom JD & re-scoring..."
+        let endpoint = baseURL.appendingPathComponent("api/application/update_jd")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = ["id": app.id, "job_description": jd]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
+                self.currentATSResult = decoded
+                self.statusMessage = "✓ Custom JD applied! ATS Match: \(decoded.match_rate_percent)%"
+                await fetchApplications(silent: true)
+            }
+        } catch {
+            self.statusMessage = "Failed to update JD: \(error.localizedDescription)"
         }
         self.isTailoring = false
     }

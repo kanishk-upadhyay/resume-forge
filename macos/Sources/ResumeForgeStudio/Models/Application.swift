@@ -16,6 +16,8 @@ public struct Application: Identifiable, Codable, Hashable {
     public var deadline: String?
     public var resume_used: String?
     public var notes: String?
+    public var job_description: String?
+    public var custom_keywords: String?
 
     public init(
         id: String,
@@ -31,7 +33,9 @@ public struct Application: Identifiable, Codable, Hashable {
         oa_deadline: String? = nil,
         deadline: String? = nil,
         resume_used: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        job_description: String? = nil,
+        custom_keywords: String? = nil
     ) {
         self.id = id
         self.company = company
@@ -47,6 +51,8 @@ public struct Application: Identifiable, Codable, Hashable {
         self.deadline = deadline
         self.resume_used = resume_used
         self.notes = notes
+        self.job_description = job_description
+        self.custom_keywords = custom_keywords
     }
 
     // MARK: - Computed Properties
@@ -259,6 +265,7 @@ public struct ATSResult: Codable {
     public let suggestions: [String]
     public let tailored_projects: [String]?
     public let compilation_time_ms: Int?
+    public let job_description: String?
 }
 
 public struct InboxEmail: Identifiable, Codable, Hashable {

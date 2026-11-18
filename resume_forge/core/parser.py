@@ -243,7 +243,11 @@ class LatexResumeParser:
     """Intelligent multi-strategy parser for LaTeX CVs and Resumes."""
 
     def __init__(self, latex_content: Union[str, Path]):
-        if hasattr(latex_content, "read_text"):
+        if isinstance(latex_content, Path):
+            latex_content = latex_content.read_text(encoding="utf-8")
+        elif isinstance(latex_content, str) and "\n" not in latex_content and len(latex_content) < 1024 and Path(latex_content).is_file():
+            latex_content = Path(latex_content).read_text(encoding="utf-8")
+        elif hasattr(latex_content, "read_text"):
             latex_content = latex_content.read_text(encoding="utf-8")
         elif isinstance(latex_content, bytes):
             latex_content = latex_content.decode("utf-8")

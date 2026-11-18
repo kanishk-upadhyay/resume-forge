@@ -39,8 +39,11 @@ STOP_WORDS = {
     "then", "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", "up",
     "very", "was", "we", "were", "what", "when", "where", "which", "while", "who", "whom", "why",
     "with", "would", "you", "your", "yours", "seeking", "looking", "experienced", "required",
-    "preferred", "years", "role", "work", "candidate", "responsibilities", "qualifications", "experience",
-    "needed", "ability", "strong", "plus", "plus+", "knowledge"
+    "requirements", "preferred", "years", "role", "work", "candidate", "responsibilities", "qualifications", "experience",
+    "needed", "ability", "strong", "plus", "plus+", "knowledge", "scouted", "scout", "via",
+    "oraclecloud", "greenhouse", "lever", "workday", "careers", "apply", "applied", "position",
+    "intern", "internship", "engineering", "engineer", "team", "teams", "company", "opportunity",
+    "notes", "overview", "status", "portal"
 }
 
 AI_CLICHE_WORDS = {
