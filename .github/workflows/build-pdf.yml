@@ -25,6 +25,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
       - name: Compile All Resume Variants to Single-Page PDFs
         run: |
           mkdir -p output/compiled_resumes

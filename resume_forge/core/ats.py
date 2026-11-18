@@ -9,9 +9,24 @@ Powered by:
 
 import re
 from typing import Dict, List, Any, Optional, Set
-import yake
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+
+try:
+    import yake
+    HAS_YAKE = True
+except ImportError:
+    yake = None
+    HAS_YAKE = False
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+    from sklearn.metrics.pairwise import cosine_similarity
+    HAS_SKLEARN = True
+except ImportError:
+    TfidfVectorizer = None
+    cosine_similarity = None
+    ENGLISH_STOP_WORDS = set()
+    HAS_SKLEARN = False
+
 from .schema import ResumeData
 
 STRONG_ACTION_VERBS = {
@@ -293,16 +308,17 @@ class ATSAnalyzer:
             required_skills = self._extract_canonical_skills(jd_clean)
 
             # Extract dynamic multi-word phrases using YAKE
-            try:
-                kw_extractor = yake.KeywordExtractor(lan="en", n=3, dedupLim=0.7, top=10)
-                yake_kws = kw_extractor.extract_keywords(jd_clean)
-                for yk, score in yake_kws:
-                    y_lower = yk.lower()
-                    for tok, canonical in CANONICAL_TECH_ONTOLOGY.items():
-                        if match_tech_token(tok, y_lower) and canonical not in required_skills:
-                            required_skills.append(canonical)
-            except Exception:
-                pass
+            if HAS_YAKE and yake is not None:
+                try:
+                    kw_extractor = yake.KeywordExtractor(lan="en", n=3, dedupLim=0.7, top=10)
+                    yake_kws = kw_extractor.extract_keywords(jd_clean)
+                    for yk, score in yake_kws:
+                        y_lower = yk.lower()
+                        for tok, canonical in CANONICAL_TECH_ONTOLOGY.items():
+                            if match_tech_token(tok, y_lower) and canonical not in required_skills:
+                                required_skills.append(canonical)
+                except Exception:
+                    pass
 
             if required_skills:
                 for req in required_skills:
@@ -314,21 +330,23 @@ class ATSAnalyzer:
                 core_tech_score = int((len(matched_keywords) / max(1, len(required_skills))) * 100)
 
             # TF-IDF Vectorizer Cosine Similarity
-            try:
-                from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-                custom_stops = list(set(ENGLISH_STOP_WORDS) - {"go", "c", "r", "next", "system", "well"})
-                tfidf = TfidfVectorizer(stop_words=custom_stops, ngram_range=(1, 2))
-                mat = tfidf.fit_transform([resume_full_text, jd_clean])
-                raw_sim = float(cosine_similarity(mat[0:1], mat[1:2])[0][0])
-                # Scale raw similarity (typically 0.10 - 0.45 for resumes) to a calibrated 0-100 score
-                base_sim = min(100, max(20, int(raw_sim * 250 + 25)))
-                if core_tech_score >= 80:
-                    domain_relevance_score = max(int(core_tech_score * 0.8), base_sim)
-                elif core_tech_score >= 50:
-                    domain_relevance_score = max(int(core_tech_score * 0.65), base_sim)
-                else:
-                    domain_relevance_score = base_sim
-            except Exception:
+            if HAS_SKLEARN and TfidfVectorizer is not None and cosine_similarity is not None:
+                try:
+                    custom_stops = list(set(ENGLISH_STOP_WORDS) - {"go", "c", "r", "next", "system", "well"})
+                    tfidf = TfidfVectorizer(stop_words=custom_stops, ngram_range=(1, 2))
+                    mat = tfidf.fit_transform([resume_full_text, jd_clean])
+                    raw_sim = float(cosine_similarity(mat[0:1], mat[1:2])[0][0])
+                    # Scale raw similarity (typically 0.10 - 0.45 for resumes) to a calibrated 0-100 score
+                    base_sim = min(100, max(20, int(raw_sim * 250 + 25)))
+                    if core_tech_score >= 80:
+                        domain_relevance_score = max(int(core_tech_score * 0.8), base_sim)
+                    elif core_tech_score >= 50:
+                        domain_relevance_score = max(int(core_tech_score * 0.65), base_sim)
+                    else:
+                        domain_relevance_score = base_sim
+                except Exception:
+                    domain_relevance_score = max(70, int(core_tech_score * 0.75))
+            else:
                 domain_relevance_score = max(70, int(core_tech_score * 0.75))
 
         # 6. Composite 4-Pillar Score Calculation
