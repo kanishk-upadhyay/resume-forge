@@ -203,18 +203,37 @@ public struct ApplicationDetailView: View {
                             .menuStyle(.borderlessButton)
                             .frame(width: 24, height: 24)
                             .help("Add deadlines to Apple or Google Calendar")
+
+                            // ATS Inspector Toggle Button
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    dataManager.showInspector.toggle()
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "gauge.with.needle.fill")
+                                        .foregroundStyle(dataManager.showInspector ? Color.purple : Color.secondary)
+                                    Text("ATS Inspector")
+                                        .font(.caption)
+                                        .fontWeight(dataManager.showInspector ? .bold : .medium)
+                                }
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3.5)
+                                .background(dataManager.showInspector ? Color.purple.opacity(0.15) : Color.secondary.opacity(0.1))
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .keyboardShortcut("i", modifiers: [.command])
+                            .help("Toggle ATS Match Inspector (⌘I)")
                         }
                     }
-
-                    // 3. Interactive ATS Match Radar & Score Booster Card
-                    ATSScoreCardView(app: app)
                 }
                 .padding(14)
                 .background(Color(NSColor.windowBackgroundColor))
 
                 Divider()
 
-                // 4. Embedded Interactive PDFKit Preview
+                // 3. Embedded Interactive PDFKit Canvas (Full Viewport Height)
                 ZStack {
                     if let pdf = app.resume_used, !pdf.isEmpty, FileManager.default.fileExists(atPath: pdf) {
                         PDFPreviewView(pdfPath: pdf)
@@ -226,7 +245,7 @@ public struct ApplicationDetailView: View {
                             Text("Tailored 1-Page PDF Not Found")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
-                            Text("Click '⚡ One-Click ATS Boost' above to compile a 1-page PDF for this role.")
+                            Text("Click '⚡ One-Click ATS Boost' in the ATS Inspector to compile a 1-page PDF for this role.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -234,6 +253,10 @@ public struct ApplicationDetailView: View {
                         .background(Color(NSColor.underPageBackgroundColor))
                     }
                 }
+            }
+            .inspector(isPresented: $dataManager.showInspector) {
+                ATSInspectorView(app: app)
+                    .inspectorColumnWidth(min: 280, ideal: 330, max: 400)
             }
             .sheet(isPresented: $showingDeadlineSheet) {
                 DeadlinePickerSheet(application: app, isPresented: $showingDeadlineSheet)

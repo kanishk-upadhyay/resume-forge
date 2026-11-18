@@ -10,15 +10,20 @@ public final class DataManager: ObservableObject {
     @Published public var selectedApp: Application? = nil
     @Published public var selectedFilter: String = "ALL"
     @Published public var selectedCategory: String = "ALL"
-    @Published public var selectedTab: String = "APPLICATIONS" // "APPLICATIONS" or "INBOX"
+    @Published public var selectedTab: String = "APPLICATIONS" // "APPLICATIONS", "INBOX", or "GITHUB"
     @Published public var searchText: String = ""
+    @Published public var showInspector: Bool = true
     @Published public var isScouting: Bool = false
     @Published public var isTailoring: Bool = false
+    @Published public var isSyncingGitHub: Bool = false
     @Published public var daemonOnline: Bool = false
     @Published public var stats: [String: Int] = [:]
     @Published public var statusMessage: String? = nil
     @Published public var currentATSResult: ATSResult? = nil
     @Published public var inboxFeed: [InboxEmail] = []
+    @Published public var githubRepos: [GitHubRepo] = []
+    @Published public var selectedRepo: GitHubRepo? = nil
+    @Published public var githubLastScanned: String? = nil
     @Published public var currentTime: Date = Date()
 
     private let baseURL = URL(string: "http://127.0.0.1:5999")!
@@ -29,6 +34,7 @@ public final class DataManager: ObservableObject {
         Task {
             await fetchApplications()
             await fetchInboxFeed()
+            await fetchGitHubRepos()
         }
         startPolling()
         startClock()
@@ -219,7 +225,24 @@ public final class DataManager: ObservableObject {
         }
     }
 
+    public func fetchGitHubRepos() async {
+        let endpoint = baseURL.appendingPathComponent("api/github/repos")
+        do {
+            let (data, response) = try await URLSession.shared.data(from: endpoint)
+            guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else { return }
+            let decoded = try JSONDecoder().decode(GitHubReposResponse.self, from: data)
+            self.githubRepos = decoded.data.projects
+            self.githubLastScanned = decoded.data.last_scanned
+            if self.selectedRepo == nil && !self.githubRepos.isEmpty {
+                self.selectedRepo = self.githubRepos.first
+            }
+        } catch {
+            print("Error fetching github repos: \(error)")
+        }
+    }
+
     public func triggerGitHubScan() async {
+        self.isSyncingGitHub = true
         self.statusMessage = "🔍 Scanning GitHub account for new projects & commits..."
         let endpoint = baseURL.appendingPathComponent("api/github/scan")
         var request = URLRequest(url: endpoint)
@@ -228,6 +251,7 @@ public final class DataManager: ObservableObject {
             let (_, resp) = try await URLSession.shared.data(for: request)
             if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
                 self.statusMessage = "✓ GitHub context crawler synced!"
+                await fetchGitHubRepos()
                 if let sel = self.selectedApp {
                     await fetchATSScore(for: sel)
                 }
@@ -235,6 +259,7 @@ public final class DataManager: ObservableObject {
         } catch {
             print("Error triggering github scan: \(error)")
         }
+        self.isSyncingGitHub = false
     }
 
     public func transitionStatus(app: Application, to newStatus: String) async {

@@ -22,12 +22,14 @@ class TestEdgeCases(unittest.TestCase):
         jd = "Seeking a senior engineer with strong C++, Node.js, and C# background."
         report = analyzer.analyze(job_description=jd)
 
-        matched = report["matched_keywords"]
-        missing = report["missing_keywords"]
+        matched = [k.lower() for k in report["matched_keywords"]]
+        missing = [k.lower() for k in report["missing_keywords"]]
 
         self.assertIn("c++", matched)
         self.assertIn("node.js", matched)
         self.assertIn("c#", missing)  # Candidate only has C++, not C#
+        self.assertNotIn("c", matched)
+        self.assertNotIn("c", missing)
 
     def test_comma_formatted_metrics_detection(self):
         """Verify comma-separated metrics and high volume figures are recognized."""

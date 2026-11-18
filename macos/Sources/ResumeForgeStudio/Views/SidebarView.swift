@@ -52,6 +52,21 @@ public struct SidebarView: View {
                     .onTapGesture {
                         dataManager.selectedTab = "INBOX"
                     }
+
+                    HStack {
+                        Label("GitHub Context Engine", systemImage: "curlybraces.square.fill")
+                        Spacer()
+                        Text("\(dataManager.githubRepos.count)")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                    }
+                    .contentShape(Rectangle())
+                    .listRowBackground(dataManager.selectedTab == "GITHUB" ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .onTapGesture {
+                        dataManager.selectedTab = "GITHUB"
+                    }
                 }
 
                 if dataManager.selectedTab == "APPLICATIONS" {

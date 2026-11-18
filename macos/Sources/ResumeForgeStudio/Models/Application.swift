@@ -254,9 +254,24 @@ public struct Application: Identifiable, Codable, Hashable {
     }
 }
 
+public struct ATSPillars: Codable, Hashable {
+    public let core_tech: Int
+    public let domain_relevance: Int
+    public let impact_metrics: Int
+    public let page_budget: Int
+
+    public init(core_tech: Int, domain_relevance: Int, impact_metrics: Int, page_budget: Int) {
+        self.core_tech = core_tech
+        self.domain_relevance = domain_relevance
+        self.impact_metrics = impact_metrics
+        self.page_budget = page_budget
+    }
+}
+
 public struct ATSResult: Codable {
     public let score: Int
     public let match_rate_percent: Int
+    public let pillars: ATSPillars?
     public let page_budget_percent: Int
     public let page_status: String
     public let matched_keywords: [String]
@@ -266,6 +281,38 @@ public struct ATSResult: Codable {
     public let tailored_projects: [String]?
     public let compilation_time_ms: Int?
     public let job_description: String?
+}
+
+public struct GitHubRepo: Identifiable, Codable, Hashable {
+    public var id: String { repo }
+    public let repo: String
+    public let url: String
+    public let is_original: Bool?
+    public let category: String?
+    public let primary_language: String?
+    public let topics: [String]?
+    public let stars: Int?
+    public let ats_bullets: [String]?
+    public let last_pushed: String?
+}
+
+public struct GitHubReposData: Codable {
+    public let last_scanned: String?
+    public let username: String?
+    public let total_projects: Int?
+    public let projects: [GitHubRepo]
+}
+
+public struct GitHubReposResponse: Codable {
+    public let status: String
+    public let data: GitHubReposData
+}
+
+public struct GitHubStatusResponse: Codable {
+    public let status: String
+    public let last_scanned: String?
+    public let total_projects: Int?
+    public let username: String?
 }
 
 public struct InboxEmail: Identifiable, Codable, Hashable {
