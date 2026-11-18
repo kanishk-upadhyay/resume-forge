@@ -272,12 +272,12 @@ public struct ATSResult: Codable {
     public let score: Int
     public let match_rate_percent: Int
     public let pillars: ATSPillars?
-    public let page_budget_percent: Int
-    public let page_status: String
-    public let matched_keywords: [String]
-    public let missing_keywords: [String]
-    public let strengths: [String]
-    public let suggestions: [String]
+    public let page_budget_percent: Int?
+    public let page_status: String?
+    public let matched_keywords: [String]?
+    public let missing_keywords: [String]?
+    public let strengths: [String]?
+    public let suggestions: [String]?
     public let tailored_projects: [String]?
     public let compilation_time_ms: Int?
     public let job_description: String?

@@ -224,6 +224,44 @@ public final class DataManager: ObservableObject {
         self.isTailoring = false
     }
 
+    public func removeKeyword(app: Application, keyword: String) async {
+        self.isTailoring = true
+        self.errorMessage = nil
+        self.statusMessage = "🗑️ Removing keyword '\(keyword)' & recompiling..."
+        let endpoint = baseURL.appendingPathComponent("api/ats_remove_keyword")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = ["id": app.id, "keyword": keyword]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse {
+                if http.statusCode == 200 {
+                    let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
+                    self.currentATSResult = decoded
+                    let timeMs = decoded.compilation_time_ms ?? 0
+                    self.statusMessage = "✓ Removed '\(keyword)'! Score: \(decoded.match_rate_percent)% (⚡ \(Double(timeMs) / 1000.0)s)"
+                    await fetchApplications(silent: true)
+                } else {
+                    if let errDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let msg = errDict["message"] as? String ?? errDict["error"] as? String {
+                        self.errorMessage = msg
+                        self.statusMessage = "❌ Removal failed: \(msg)"
+                    } else {
+                        self.errorMessage = "Failed to remove keyword (HTTP \(http.statusCode))"
+                        self.statusMessage = "❌ Removal failed (HTTP \(http.statusCode))"
+                    }
+                }
+            }
+        } catch {
+            self.errorMessage = "Network error: \(error.localizedDescription)"
+            self.statusMessage = "❌ Removal failed: \(error.localizedDescription)"
+        }
+        self.isTailoring = false
+    }
+
     public func updateJobDescription(app: Application, jd: String) async {
         self.isTailoring = true
         self.errorMessage = nil
