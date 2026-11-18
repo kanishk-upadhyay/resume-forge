@@ -207,17 +207,29 @@ def _match_location(job_location_str: str, target_location: str) -> bool:
     job_loc_lower = job_location_str.lower()
     target_tokens = [tok.strip().lower() for tok in target_location.split(",") if tok.strip()]
 
+    # Skip common 2-letter codes that collide with English prepositions/pronouns if checked loosely
+    COLLISION_ISO2 = {"in", "it", "no", "is", "me", "to", "at", "by", "or", "so"}
+
     for token in target_tokens:
-        if token in job_loc_lower:
-            return True
         if token in REMOTE_TERMS and any(r in job_loc_lower for r in REMOTE_TERMS):
             return True
+        # Exact word match for token to prevent matching substrings like 'india' in 'industrial'
+        if re.search(r'\b' + re.escape(token) + r'\b', job_loc_lower):
+            return True
         iso_code = ISO_COUNTRY_MAP.get(token)
-        if iso_code and iso_code.lower() in job_loc_lower:
+        if iso_code and re.search(r'\b' + re.escape(iso_code.lower()) + r'\b', job_loc_lower):
             return True
         iso2 = ISO_2_MAP.get(token)
-        if iso2 and re.search(r'\b' + re.escape(iso2) + r'\b', job_loc_lower):
+        if iso2 and iso2 not in COLLISION_ISO2 and re.search(r'\b' + re.escape(iso2) + r'\b', job_loc_lower):
             return True
+        # If iso2 is in COLLISION_ISO2 (e.g. 'in' for India), match only in structured country format:
+        # e.g., ', in', '/in', '(in)', 'in,', or uppercase IN in raw string
+        if iso2 and iso2 in COLLISION_ISO2:
+            if re.search(r'(?:,\s*|/\s*|\(\s*)' + re.escape(iso2) + r'(?:\s*,|\s*\)|\s*$)', job_loc_lower):
+                return True
+            if re.search(r'\b' + re.escape(iso2.upper()) + r'\b', job_location_str):
+                return True
+    return False
     return False
 
 

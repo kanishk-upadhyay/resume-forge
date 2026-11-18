@@ -75,8 +75,36 @@
       {Barkatullah University}{08/2023 -- 06/2027}
       {Bachelor of Engineering in Computer Science}{Bhopal, India}
       \resumeItemListStart
-        \resumeItem{Core Coursework: Data Structures \& Algorithms, Operating Systems, Database Management Systems, Computer Networks.}
+        \resumeItem{Core Coursework: Operating Systems, Computer Networks, Database Management Systems, Data Structures \& Algorithms.}
         \resumeItem{Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------OPEN-SOURCE CONTRIBUTIONS-----------
+\section{Open-Source Systems \& Contributions}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {GitLab Core}{08/2024 -- Present}
+      {Upstream Monorepo Contributor (Vue.js)}{GitLab.com}
+      \resumeItemListStart
+        \resumeItem{Authored and merged upstream contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens across enterprise workflows.}
+        \resumeItem{Navigated enterprise code review, strict Pajamas linting standards, and distributed CI/CD test pipelines.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {TetherKit (macOS User-Space RNDIS Driver)}{2025 -- Present}
+      {Upstream Contributor (C++23, Swift, libusb)}{GitHub}
+      \resumeItemListStart
+        \resumeItem{Authored 7 upstream PRs resolving high daemon CPU consumption (slashed idle CPU from 100.5\% to 0.1\%) via 3-stage progressive backoff.}
+        \resumeItem{Tuned USB bulk transfer queues and virtual network interface buffering, eliminating packet drop under heavy load.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Yatoro / Swift-Log}{2025 -- Present}
+      {Systems \& Concurrency Debugging (Swift)}{GitHub}
+      \resumeItemListStart
+        \resumeItem{Diagnosed and patched a multithreaded concurrency race condition in non-thread-safe logging in swift-log during SIGWINCH resize.}
+        \resumeItem{Refactored terminal coordinate arithmetic, fixing off-by-one boundary calculations during rapid track navigation.}
       \resumeItemListEnd
   \resumeSubHeadingListEnd
 
@@ -85,39 +113,17 @@
   \resumeSubHeadingListStart
     \resumeSubheading
       {Software Developer Intern}{06/2025 -- 12/2025}
-      {OZ Media}{Remote}
+      {OZ Media}{Bhopal, India / Remote}
       \resumeItemListStart
-        \resumeItem{Engineered full-stack responsive web applications utilizing React and Redux on the frontend with Python Flask backends.}
-        \resumeItem{Configured and maintained Linux VPS production instances, automated deployment scripts, and tuned Nginx web server daemons.}
-        \resumeItem{Implemented relational schemas and optimized queries with SQLAlchemy and MySQL, reducing API response times by 35\%.}
+        \resumeItem{Administered production Linux VPS: provisioned Nginx reverse proxies, configured systemd daemons, and automated deployments.}
+        \resumeItem{Constructed full-stack web applications with React on the frontend and Python/Flask APIs backed by relational MySQL schemas.}
       \resumeItemListEnd
 
     \resumeSubheading
       {Web Developer Intern}{01/2026 -- 06/2026}
       {Digigocare}{Bhopal, India}
       \resumeItemListStart
-        \resumeItem{Developed interactive clinic analytics dashboards featuring asynchronous state updates and role-based access control.}
-        \resumeItem{Integrated resilient RESTful API endpoints for multi-tenant patient record handling with strict input validation.}
-      \resumeItemListEnd
-  \resumeSubHeadingListEnd
-
-%-----------OPEN-SOURCE CONTRIBUTIONS-----------
-\section{Open-Source Contributions}
-  \resumeSubHeadingListStart
-    \resumeSubheading
-      {GitLab (Core Upstream Contributor)}{08/2024 -- Present}
-      {Vue.js Frontend Architecture}{GitLab.com}
-      \resumeItemListStart
-        \resumeItem{Standardized UI/UX components across core GitLab by implementing centralized Vue.js design tokens, benefiting millions of developers.}
-        \resumeItem{Navigated enterprise-grade code review cycles, automated Jest unit tests, and adhered to stringent upstream coding standards.}
-      \resumeItemListEnd
-
-    \resumeSubheading
-      {Yatoro (Apple Music TUI Player)}{09/2024 -- Present}
-      {Swift Systems \& Concurrency Patching}{GitHub}
-      \resumeItemListStart
-        \resumeItem{Diagnosed and resolved concurrency race condition in non-thread-safe logging during terminal window resize events by patching swift-log.}
-        \resumeItem{Refactored terminal plane coordinate calculations and layout rendering routines, eliminating visual artifacts.}
+        \resumeItem{Constructed interactive healthcare dashboard components featuring asynchronous state management and resilient REST APIs.}
       \resumeItemListEnd
   \resumeSubHeadingListEnd
 
@@ -125,22 +131,16 @@
 \section{Projects}
   \resumeSubHeadingListStart
     \resumeProjectHeading
-      {\textbf{Pokédex Web Application} $|$ \emph{Vanilla JavaScript, Service Workers, REST API, Surge}}{04/2024 -- 05/2024}
+      {\textbf{Resume-Forge} $|$ \emph{Python, AST Parsing, Typst, LaTeX, CLI}}{2026}
       \resumeItemListStart
-        \resumeItem{Architected offline-first PWA caching PokéAPI payloads with custom LRU cache and TTL eviction, achieving sub-10ms query speeds.}
-        \resumeItem{Implemented custom client-side Levenshtein distance algorithm for error-tolerant fuzzy search over 1,000+ monsters.}
+        \resumeItem{Architected an in-house AST resume parser and single-page compiler with 168 passing unit tests, eliminating cloud dependencies.}
+        \resumeItem{Implemented multi-ATS schema validation and automated keyword density scoring for high-fidelity PDF output.}
       \resumeItemListEnd
 
     \resumeProjectHeading
-      {\textbf{Sector 7 Marketplace} $|$ \emph{React, Redux Toolkit, Node.js, Vite}}{10/2024 -- 11/2024}
+      {\textbf{Pokédex PWA} $|$ \emph{Vanilla JavaScript, Service Workers, LRU Cache, Surge}}{2024}
       \resumeItemListStart
-        \resumeItem{Built high-performance single-page catalog interface with centralized state slices, persistent shopping cart, and route guards.}
-      \resumeItemListEnd
-
-    \resumeProjectHeading
-      {\textbf{SmartSpend Expense Tracker} $|$ \emph{TypeScript, Python, SQLite, OCR}}{01/2025 -- 03/2025}
-      \resumeItemListStart
-        \resumeItem{Constructed receipt OCR parser with automated expense categorizer and local SQLite synchronization for offline usability.}
+        \resumeItem{Engineered zero-dependency offline PWA achieving sub-10ms query times using client-side LRU cache eviction and Levenshtein search.}
       \resumeItemListEnd
   \resumeSubHeadingListEnd
 
@@ -148,10 +148,9 @@
 \section{Technical Skills}
  \begin{itemize}[leftmargin=0.15in, label={}]
     \small{\item{
-     \textbf{Languages}{: Python, C, Swift, JavaScript, TypeScript, HTML/CSS, SQL} \\
-     \textbf{Frameworks \& Libraries}{: React, Vue.js, Redux / Redux Toolkit, Flask, Django, Vite} \\
-     \textbf{Systems \& DevOps}{: Linux, Git, GitLab CI/CD, Nginx, Docker, Android Architecture, Cloudflare Pages} \\
-     \textbf{Databases \& Protocols}{: MySQL, SQLite, PostgreSQL, REST APIs, JSON-RPC, WebSocket} \\
+     \textbf{Languages}{: Python, C, C++, Swift, JavaScript, TypeScript, SQL, Bash} \\
+     \textbf{Systems \& Tools}{: Linux (Ubuntu, POSIX), systemd, Git, GitLab CI/CD, Nginx, Docker, libusb, REST APIs} \\
+     \textbf{Frameworks \& Web}{: React, Vue.js, Flask, FastAPI, Service Workers, PWA Architecture} \\
     }}
  \end{itemize}
 

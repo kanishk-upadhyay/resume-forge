@@ -1,91 +1,157 @@
-\documentclass[10pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[margin=0.5in]{geometry}
-\usepackage{hyperref}
-\usepackage{enumitem}
-\usepackage{titlesec}
+\documentclass[letterpaper,10pt]{article}
 
-\hypersetup{
-    colorlinks=true,
-    linkcolor=black,
-    urlcolor=black
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Margins adjustment for exact 1-page fit
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Custom commands
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
 }
 
-\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
-\titlespacing*{\section}{0pt}{6pt}{3pt}
-\setlist[itemize]{leftmargin=1.15em, itemsep=1.2pt, topsep=1.2pt}
-\pagestyle{empty}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
 \begin{document}
 
+%----------HEADING----------
 \begin{center}
-    {\huge \textbf{Kanishk Upadhyay}} \\ \vspace{2pt}
-    Bhopal, India \ $\cdot$ \ +91 7772034062 \ $\cdot$ \ \href{mailto:code.latter678@aleeas.com}{code.latter678@aleeas.com} \\ \vspace{2pt}
-    \href{https://kanishk-upadhyay.github.io/}{Portfolio: kanishk-upadhyay.github.io} \ $\cdot$ \ 
-    \href{https://github.com/kanishk-upadhyay}{GitHub: github.com/kanishk-upadhyay} \ $\cdot$ \ 
-    \href{https://linkedin.com/in/kanishk22}{LinkedIn: linkedin.com/in/kanishk22}
+    \textbf{\Huge \scshape Kanishk Upadhyay} \\ \vspace{2pt}
+    \small +91 7772034062 $|$ \href{mailto:code.latter678@aleeas.com}{code.latter678@aleeas.com} $|$ Bhopal, India \\
+    \href{https://github.com/kanishk-upadhyay}{github.com/kanishk-upadhyay} $|$ \href{https://gitlab.com/kanishk0}{gitlab.com/kanishk0} $|$ \href{https://linkedin.com/in/kanishk22}{linkedin.com/in/kanishk22} $|$ \href{https://kanishk-upadhyay.github.io/}{kanishk-upadhyay.github.io}
 \end{center}
 
-\vspace{-6pt}
-\section{Profile}
-Open-source software developer with hands-on Linux systems administration, daemon orchestration, and low-level debugging in C and Swift. Proven track record contributing peer-reviewed code to the core GitLab monorepo, diagnosing multithreaded concurrency race conditions, and configuring POSIX/systemd production services. Dedicated to open-source software, clean system design, and rigorous testing. Available for software engineering role.
-
-\section{Technical Skills}
-\begin{itemize}
-    \item \textbf{Linux \& Systems:} Linux (Ubuntu/Debian, POSIX), systemd, Bash, C, Verilog, RISC-V Architecture, Git, Nginx, Docker, Networking
-    \item \textbf{Languages:} Python, C, Verilog, Swift, TypeScript, JavaScript, SQL, HTML5/CSS3
-    \item \textbf{Backend \& Cloud:} FastAPI, Flask, Django, RESTful APIs, PostgreSQL, MySQL, Linux VPS Management
-    \item \textbf{Tools \& Practices:} GitLab CI/CD, GitHub Actions, Open-Source Code Review, Concurrency Debugging, Automated Testing
-\end{itemize}
-
-\section{Open-Source Contributions}
-\textbf{GitLab Core} \textit{(Monorepo Contributor -- Vue.js)} \hfill \textit{2025}
-\begin{itemize}
-    \item Authored and merged peer-reviewed contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens across enterprise workflows.
-    \item Navigated rigorous enterprise review processes, strict linting rules, and distributed CI/CD test suites on an open-source codebase serving millions.
-\end{itemize}
-
-\textbf{Yatoro} \textit{(Apple Music TUI Player, Swift)} \hfill \textit{2025}
-\begin{itemize}
-    \item Diagnosed and resolved a concurrency race condition during terminal resize (\texttt{SIGWINCH}) by patching the \texttt{swift-log} dependency (\href{https://github.com/jayadamsmorgan/Yatoro/pull/48}{PR \#48}).
-    \item Corrected layout plane height/width calculation algorithms (\href{https://github.com/jayadamsmorgan/Yatoro/pull/51}{PR \#51}) and fixed off-by-one song index arithmetic during track navigation (\href{https://github.com/jayadamsmorgan/Yatoro/pull/56}{PR \#56}).
-    \item Engineered an interactive CLI help command and user documentation to streamline developer onboarding (\href{https://github.com/jayadamsmorgan/Yatoro/pull/53}{PR \#53}).
-\end{itemize}
-
-\section{Experience}
-\textbf{OZ Media} \hfill \textit{Jun 2025 -- Dec 2025} \\
-\textit{Software Developer Intern} \hfill \textit{Bhopal, India}
-\begin{itemize}
-    \item Administered Linux VPS environments: configured \textbf{Nginx} reverse proxies, provisioned \textbf{Certbot} SSL certificates, and managed \textbf{systemd} service daemons for production web applications.
-    \item Built full-stack applications with React on the frontend and Python/Flask on the backend, structuring relational database schemas in MySQL.
-    \item Maintained automated CI/CD deployment pipelines for staging and production web environments.
-\end{itemize}
-
-\textbf{DCare} \hfill \textit{Jan 2026 -- Jun 2026} \\
-\textit{Software Developer Intern} \hfill \textit{Remote}
-\begin{itemize}
-    \item Developed core clinical history modules using \textbf{Django}, \textbf{Next.js}, and \textbf{PostgreSQL}, implementing role-based access control and high-throughput RESTful endpoints.
-\end{itemize}
-
-\section{Selected Projects}
-\textbf{Valkyrie RV32I Processor Core} \ $\cdot$ \ \textit{Verilog, RISC-V, Hardware Architecture} \hfill \href{https://github.com/kanishk-upadhyay/valkyrie-rv32i-core}{github.com/kanishk-upadhyay/valkyrie-rv32i-core}
-\begin{itemize}
-    \item Designed an industry-grade 5-stage pipelined RV32I RISC-V CPU in Verilog for DG Signals / Indian Army AICTE Programme; built hazard detection with 1-cycle bubble stalls, EX/MEM data forwarding, machine CSRs, and 20 passing CI test suites.
-\end{itemize}
-
-\textbf{Pokédex Engine} \ $\cdot$ \ \textit{Vanilla JavaScript, Service Workers, REST API} \hfill \href{https://github.com/kanishk-upadhyay/pokedex}{github.com/kanishk-upadhyay/pokedex}
-\begin{itemize}
-    \item Engineered an offline-first single-page application using Service Worker caching, an in-memory LRU cache with TTL eviction, and a custom Levenshtein-distance fuzzy search algorithm for resilient real-time offline queries.
-\end{itemize}
-
-\textbf{SmartSpend} \ $\cdot$ \ \textit{FastAPI, Python, Supabase (PostgreSQL), React 19} \hfill \href{https://github.com/kanishk-upadhyay/smartspend}{github.com/kanishk-upadhyay/smartspend}
-\begin{itemize}
-    \item Built an intelligent expense tracker with automated receipt ingestion via a multimodal Gemini 2.5 Flash pipeline with fallback redundancy.
-\end{itemize}
-
+%-----------EDUCATION-----------
 \section{Education}
-\textbf{Barkatullah University} \hfill \textit{Bhopal, India} \\
-Bachelor of Engineering (B.E.), Computer Science \hfill \textit{2023 -- 2027} \\
-\textit{Relevant Coursework:} Operating Systems, Computer Networks, Data Structures \& Algorithms, Database Management Systems, Software Engineering. Independent completion of Harvard CS50x.
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Barkatullah University}{08/2023 -- 06/2027}
+      {Bachelor of Engineering in Computer Science}{Bhopal, India}
+      \resumeItemListStart
+        \resumeItem{Core Coursework: Operating Systems, Computer Networks, Database Management Systems, Data Structures \& Algorithms.}
+        \resumeItem{Completed Harvard CS50x: Rigorous foundations in C, Python, SQL, memory allocation, and algorithmic complexity.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------OPEN-SOURCE CONTRIBUTIONS-----------
+\section{Open-Source Systems \& Contributions}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {GitLab Core}{08/2024 -- Present}
+      {Upstream Monorepo Contributor (Vue.js)}{GitLab.com}
+      \resumeItemListStart
+        \resumeItem{Authored and merged upstream contributions into the core GitLab monorepo (\href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179636}{MR !179636}, \href{https://gitlab.com/gitlab-org/gitlab/-/merge_requests/179628}{MR !179628}), implementing Vue.js design tokens across enterprise workflows.}
+        \resumeItem{Navigated enterprise code review, strict Pajamas linting standards, and distributed CI/CD test pipelines.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {TetherKit (macOS User-Space RNDIS Driver)}{2025 -- Present}
+      {Upstream Contributor (C++23, Swift, libusb)}{GitHub}
+      \resumeItemListStart
+        \resumeItem{Authored 7 upstream PRs resolving high daemon CPU consumption (slashed idle CPU from 100.5\% to 0.1\%) via 3-stage progressive backoff.}
+        \resumeItem{Tuned USB bulk transfer queues and virtual network interface buffering, eliminating packet drop under heavy load.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Yatoro / Swift-Log}{2025 -- Present}
+      {Systems \& Concurrency Debugging (Swift)}{GitHub}
+      \resumeItemListStart
+        \resumeItem{Diagnosed and patched a multithreaded concurrency race condition in non-thread-safe logging in swift-log during SIGWINCH resize.}
+        \resumeItem{Refactored terminal coordinate arithmetic, fixing off-by-one boundary calculations during rapid track navigation.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Software Developer Intern}{06/2025 -- 12/2025}
+      {OZ Media}{Bhopal, India / Remote}
+      \resumeItemListStart
+        \resumeItem{Administered production Linux VPS: provisioned Nginx reverse proxies, configured systemd daemons, and automated deployments.}
+        \resumeItem{Constructed full-stack web applications with React on the frontend and Python/Flask APIs backed by relational MySQL schemas.}
+      \resumeItemListEnd
+
+    \resumeSubheading
+      {Web Developer Intern}{01/2026 -- 06/2026}
+      {Digigocare}{Bhopal, India}
+      \resumeItemListStart
+        \resumeItem{Constructed interactive healthcare dashboard components featuring asynchronous state management and resilient REST APIs.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+      {\textbf{Resume-Forge} $|$ \emph{Python, AST Parsing, Typst, LaTeX, CLI}}{2026}
+      \resumeItemListStart
+        \resumeItem{Architected an in-house AST resume parser and single-page compiler with 168 passing unit tests, eliminating cloud dependencies.}
+        \resumeItem{Implemented multi-ATS schema validation and automated keyword density scoring for high-fidelity PDF output.}
+      \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Pokédex PWA} $|$ \emph{Vanilla JavaScript, Service Workers, LRU Cache, Surge}}{2024}
+      \resumeItemListStart
+        \resumeItem{Engineered zero-dependency offline PWA achieving sub-10ms query times using client-side LRU cache eviction and Levenshtein search.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Python, C, C++, Swift, JavaScript, TypeScript, SQL, Bash} \\
+     \textbf{Systems \& Tools}{: Linux (Ubuntu, POSIX), systemd, Git, GitLab CI/CD, Nginx, Docker, libusb, REST APIs} \\
+     \textbf{Frameworks \& Web}{: React, Vue.js, Flask, FastAPI, Service Workers, PWA Architecture} \\
+    }}
+ \end{itemize}
 
 \end{document}
