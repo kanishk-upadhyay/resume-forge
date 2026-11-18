@@ -22,47 +22,81 @@ public struct SidebarView: View {
     public var body: some View {
         VStack(spacing: 0) {
             List {
-                Section(header: Text("PIPELINE STAGES").font(.caption2).fontWeight(.semibold)) {
-                    ForEach(statusOptions, id: \.0) { key, icon, color in
-                        HStack {
-                            Label {
-                                Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
-                            } icon: {
-                                Image(systemName: icon)
-                                    .foregroundStyle(color)
-                            }
-                            Spacer()
-                            Text("\(countForStatus(key))")
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
-                        }
-                        .contentShape(Rectangle())
-                        .tag(key)
-                        .listRowBackground(dataManager.selectedFilter == key ? Color.accentColor.opacity(0.15) : Color.clear)
-                        .onTapGesture {
-                            dataManager.selectedFilter = key
-                        }
+                Section(header: Text("WORKFLOW").font(.caption2).fontWeight(.semibold)) {
+                    HStack {
+                        Label("Applications Pipeline", systemImage: "briefcase.fill")
+                        Spacer()
+                        Text("\(dataManager.applications.count)")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                    }
+                    .contentShape(Rectangle())
+                    .listRowBackground(dataManager.selectedTab == "APPLICATIONS" ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .onTapGesture {
+                        dataManager.selectedTab = "APPLICATIONS"
+                    }
+
+                    HStack {
+                        Label("Inbound Mail Stream", systemImage: "tray.full.fill")
+                        Spacer()
+                        Text("\(dataManager.inboxFeed.count)")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                    }
+                    .contentShape(Rectangle())
+                    .listRowBackground(dataManager.selectedTab == "INBOX" ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .onTapGesture {
+                        dataManager.selectedTab = "INBOX"
                     }
                 }
 
-                Section(header: Text("DOMAINS & SECTORS").font(.caption2).fontWeight(.semibold)) {
-                    ForEach(categories, id: \.0) { catKey, icon, label in
-                        HStack {
-                            Label(label, systemImage: icon)
-                            Spacer()
-                            Text("\(countForCategory(catKey))")
-                                .font(.caption)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                if dataManager.selectedTab == "APPLICATIONS" {
+                    Section(header: Text("PIPELINE STAGES").font(.caption2).fontWeight(.semibold)) {
+                        ForEach(statusOptions, id: \.0) { key, icon, color in
+                            HStack {
+                                Label {
+                                    Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
+                                } icon: {
+                                    Image(systemName: icon)
+                                        .foregroundStyle(color)
+                                }
+                                Spacer()
+                                Text("\(countForStatus(key))")
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                            }
+                            .contentShape(Rectangle())
+                            .tag(key)
+                            .listRowBackground(dataManager.selectedFilter == key ? Color.accentColor.opacity(0.15) : Color.clear)
+                            .onTapGesture {
+                                dataManager.selectedFilter = key
+                            }
                         }
-                        .contentShape(Rectangle())
-                        .tag(catKey)
-                        .listRowBackground(dataManager.selectedCategory == catKey ? Color.accentColor.opacity(0.15) : Color.clear)
-                        .onTapGesture {
-                            dataManager.selectedCategory = catKey
+                    }
+
+                    Section(header: Text("DOMAINS & SECTORS").font(.caption2).fontWeight(.semibold)) {
+                        ForEach(categories, id: \.0) { catKey, icon, label in
+                            HStack {
+                                Label(label, systemImage: icon)
+                                Spacer()
+                                Text("\(countForCategory(catKey))")
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color(NSColor.quaternaryLabelColor)))
+                            }
+                            .contentShape(Rectangle())
+                            .tag(catKey)
+                            .listRowBackground(dataManager.selectedCategory == catKey ? Color.accentColor.opacity(0.15) : Color.clear)
+                            .onTapGesture {
+                                dataManager.selectedCategory = catKey
+                            }
                         }
                     }
                 }
@@ -72,7 +106,7 @@ public struct SidebarView: View {
             Divider()
 
             // Footer: Daemon Health & Scout Trigger
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 HStack {
                     Circle()
                         .fill(dataManager.daemonOnline ? Color.green : Color.red)
@@ -99,27 +133,32 @@ public struct SidebarView: View {
                         } else {
                             Image(systemName: "bolt.fill")
                         }
-                        Text(dataManager.isScouting ? "Scouting..." : "Scout Roles Now")
+                        Text("Scout New Roles Now")
                             .fontWeight(.medium)
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.small)
                 .disabled(dataManager.isScouting)
             }
-            .padding(12)
+            .padding(10)
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 210, idealWidth: 230)
+        .frame(minWidth: 200, idealWidth: 220)
     }
 
     private func countForStatus(_ key: String) -> Int {
-        if key == "ALL" { return dataManager.applications.count }
-        return dataManager.stats[key] ?? dataManager.applications.filter { $0.status == key }.count
+        if key == "ALL" {
+            return dataManager.applications.count
+        }
+        return dataManager.stats[key] ?? 0
     }
 
     private func countForCategory(_ cat: String) -> Int {
-        if cat == "ALL" { return dataManager.applications.count }
+        if cat == "ALL" {
+            return dataManager.applications.count
+        }
         return dataManager.applications.filter { $0.category == cat }.count
     }
 }

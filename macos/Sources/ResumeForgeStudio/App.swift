@@ -1,8 +1,18 @@
 import SwiftUI
 import AppKit
 
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") ?? Bundle.main.url(forResource: "AppIcon", withExtension: nil),
+           let img = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = img
+        }
+    }
+}
+
 @main
 struct ResumeForgeStudioApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var dataManager = DataManager.shared
     @StateObject private var calendarManager = CalendarManager.shared
 
@@ -16,7 +26,10 @@ struct ResumeForgeStudioApp: App {
             SidebarCommands()
             CommandGroup(replacing: .newItem) {
                 Button("Refresh Applications") {
-                    Task { await dataManager.fetchApplications() }
+                    Task {
+                        await dataManager.fetchApplications()
+                        await dataManager.fetchInboxFeed()
+                    }
                 }
                 .keyboardShortcut("r", modifiers: .command)
 
@@ -37,6 +50,21 @@ struct ResumeForgeStudioApp: App {
                         .font(.caption)
                 }
 
+                // Live Active OA Countdowns
+                let oaPending = dataManager.applications.filter { $0.isOAPending }
+                if !oaPending.isEmpty {
+                    Divider()
+                    Text("🔴 Active Assessments (Live):")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.red)
+                    ForEach(oaPending.prefix(3), id: \.id) { app in
+                        Text("• \(app.company): \(app.oaCountdownFormatted)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                }
+
                 Divider()
 
                 Text("Pipeline Summary:")
@@ -47,7 +75,7 @@ struct ResumeForgeStudioApp: App {
                 Text("• Applied: \(dataManager.stats["APPLIED"] ?? 0)")
                 Text("• OA Pending: \(dataManager.stats["OA_PENDING"] ?? 0)")
 
-                // Deadlines
+                // Urgent Deadlines
                 let urgent = dataManager.applications.filter { ($0.daysUntilDeadline ?? 999) <= 3 }
                 if !urgent.isEmpty {
                     Divider()

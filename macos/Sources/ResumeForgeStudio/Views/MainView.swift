@@ -9,7 +9,11 @@ public struct MainView: View {
         NavigationSplitView {
             SidebarView()
         } content: {
-            ApplicationListView()
+            if dataManager.selectedTab == "INBOX" {
+                InboxStreamView()
+            } else {
+                ApplicationListView()
+            }
         } detail: {
             ApplicationDetailView(app: dataManager.selectedApp)
         }
@@ -17,7 +21,10 @@ public struct MainView: View {
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button(action: {
-                    Task { await dataManager.fetchApplications() }
+                    Task {
+                        await dataManager.fetchApplications()
+                        await dataManager.fetchInboxFeed()
+                    }
                 }) {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }

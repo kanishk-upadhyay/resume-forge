@@ -11,7 +11,7 @@ public struct ApplicationListView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Search companies, roles, cities...", text: $dataManager.searchText)
+                TextField("Search companies, roles, locations...", text: $dataManager.searchText)
                     .textFieldStyle(.plain)
                 if !dataManager.searchText.isEmpty {
                     Button(action: { dataManager.searchText = "" }) {
@@ -44,7 +44,10 @@ public struct ApplicationListView: View {
                     Spacer()
                 }
             } else {
-                List(dataManager.filteredApplications, id: \.id, selection: $dataManager.selectedApp) { app in
+                List(dataManager.filteredApplications, id: \.id, selection: Binding(
+                    get: { dataManager.selectedApp },
+                    set: { dataManager.selectApplication($0) }
+                )) { app in
                     ApplicationRow(app: app, onSetDeadline: {
                         targetAppForDeadline = app
                         showingDeadlineSheet = true
@@ -93,6 +96,32 @@ private struct ApplicationRow: View {
                     .background(app.statusColor.opacity(0.18))
                     .foregroundStyle(app.statusColor)
                     .clipShape(Capsule())
+            }
+
+            // Sentinel Badges: Live OA Countdown or Ghosting Alert
+            if app.isOAPending {
+                HStack(spacing: 4) {
+                    Circle().fill(Color.red).frame(width: 6, height: 6)
+                    Text("🔴 OA Due: \(app.oaCountdownFormatted)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.red)
+                }
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(4)
+            } else if app.isGhosting {
+                HStack(spacing: 4) {
+                    Image(systemName: "clock.badge.exclamationmark")
+                        .font(.system(size: 9))
+                    Text("⚠️ \(app.daysSinceApplied ?? 7)d follow-up due")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(4)
             }
 
             // Location & Deadline Info

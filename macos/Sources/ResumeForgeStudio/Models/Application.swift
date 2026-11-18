@@ -107,6 +107,48 @@ public struct Application: Identifiable, Codable, Hashable {
         return .green
     }
 
+    public var isOAPending: Bool {
+        status.uppercased() == "OA_PENDING"
+    }
+
+    public var oaCountdownFormatted: String {
+        guard let target = effectiveDeadlineDate else {
+            return "Pending assessment"
+        }
+        let now = Date()
+        let diff = target.timeIntervalSince(now)
+        if diff <= 0 {
+            return "Assessment Expired"
+        }
+        let hours = Int(diff) / 3600
+        let minutes = (Int(diff) % 3600) / 60
+        let seconds = Int(diff) % 60
+        if hours >= 24 {
+            let days = hours / 24
+            let remHours = hours % 24
+            return "\(days)d \(remHours)h left"
+        } else {
+            return String(format: "%02dh %02dm %02ds left", hours, minutes, seconds)
+        }
+    }
+
+    public var daysSinceApplied: Int? {
+        guard let s = date_applied, !s.isEmpty else { return nil }
+        let standard = DateFormatter()
+        standard.dateFormat = "yyyy-MM-dd"
+        guard let d = standard.date(from: s) else { return nil }
+        let calendar = Calendar.current
+        let startOfApp = calendar.startOfDay(for: d)
+        let startOfToday = calendar.startOfDay(for: Date())
+        return calendar.dateComponents([.day], from: startOfApp, to: startOfToday).day
+    }
+
+    public var isGhosting: Bool {
+        guard status.uppercased() == "APPLIED" else { return false }
+        guard let days = daysSinceApplied else { return false }
+        return days >= 7
+    }
+
     public var category: String {
         let c = company.lowercased()
         if c.contains("red bull") || c.contains("williams") || c.contains("aston martin") ||
@@ -172,4 +214,60 @@ public struct Application: Identifiable, Codable, Hashable {
         ]
         return components.url
     }
+
+    public var followUpMailtoURL: URL? {
+        let subject = "Following up: \(role) application / Kanishk Upadhyay (SWE Intern 2027)"
+        let dateAppliedStr = date_applied ?? "last week"
+        let body = """
+        Hi \(company) recruiting team,
+
+        I hope you are having a productive week!
+
+        I applied for the \(role) position on \(dateAppliedStr) and wanted to follow up briefly on my candidacy.
+
+        Since applying, I've continued actively shipping systems software on GitHub (https://github.com/kanishk-upadhyay), including optimizations to TetherKit (user-space macOS RNDIS driver slashing idle CPU from 100.5% to 0.1%) and upstream patches in Apple swift-log.
+
+        I am available for full-time 3-month summer or 6-month off-cycle SWE internships starting anytime, with zero university attendance conflicts.
+
+        Would love to connect for a 10-minute technical chat or answer any questions about my background.
+
+        Best regards,
+        Kanishk Upadhyay
+        GitHub: https://github.com/kanishk-upadhyay
+        Portfolio: https://kanishk-upadhyay.github.io/
+        Email: code.latter678@aleeas.com | Phone: +91 7772034062
+        """
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "careers@\(company.lowercased().filter { $0.isLetter }).com"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return components.url
+    }
+}
+
+public struct ATSResult: Codable {
+    public let score: Int
+    public let match_rate_percent: Int
+    public let page_budget_percent: Int
+    public let page_status: String
+    public let matched_keywords: [String]
+    public let missing_keywords: [String]
+    public let strengths: [String]
+    public let suggestions: [String]
+    public let tailored_projects: [String]?
+    public let compilation_time_ms: Int?
+}
+
+public struct InboxEmail: Identifiable, Codable, Hashable {
+    public let id: String
+    public let app_id: String?
+    public let company: String
+    public let status: String
+    public let subject: String
+    public let sender: String
+    public let date: String
+    public let reason: String?
 }

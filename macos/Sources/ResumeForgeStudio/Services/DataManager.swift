@@ -10,27 +10,45 @@ public final class DataManager: ObservableObject {
     @Published public var selectedApp: Application? = nil
     @Published public var selectedFilter: String = "ALL"
     @Published public var selectedCategory: String = "ALL"
+    @Published public var selectedTab: String = "APPLICATIONS" // "APPLICATIONS" or "INBOX"
     @Published public var searchText: String = ""
     @Published public var isScouting: Bool = false
+    @Published public var isTailoring: Bool = false
     @Published public var daemonOnline: Bool = false
     @Published public var stats: [String: Int] = [:]
     @Published public var statusMessage: String? = nil
+    @Published public var currentATSResult: ATSResult? = nil
+    @Published public var inboxFeed: [InboxEmail] = []
+    @Published public var currentTime: Date = Date()
 
     private let baseURL = URL(string: "http://127.0.0.1:5999")!
-    private var timer: Timer?
+    private var pollTimer: Timer?
+    private var clockTimer: Timer?
 
     public init() {
         Task {
             await fetchApplications()
+            await fetchInboxFeed()
         }
         startPolling()
+        startClock()
     }
 
     public func startPolling() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.fetchApplications(silent: true)
+                await self?.fetchInboxFeed()
+            }
+        }
+    }
+
+    public func startClock() {
+        clockTimer?.invalidate()
+        clockTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.currentTime = Date()
             }
         }
     }
@@ -62,7 +80,7 @@ public final class DataManager: ObservableObject {
             self.stats = decoded.stats.by_status
             
             if self.selectedApp == nil && !self.applications.isEmpty {
-                self.selectedApp = self.applications.first
+                self.selectApplication(self.applications.first)
             } else if let sel = self.selectedApp, let updated = self.applications.first(where: { $0.id == sel.id }) {
                 self.selectedApp = updated
             }
@@ -71,6 +89,95 @@ public final class DataManager: ObservableObject {
                 print("Failed to fetch from daemon: \(error)")
             }
             self.daemonOnline = false
+        }
+    }
+
+    public func selectApplication(_ app: Application?) {
+        self.selectedApp = app
+        if let app = app {
+            Task {
+                await fetchATSScore(for: app)
+            }
+        }
+    }
+
+    public func fetchATSScore(for app: Application) async {
+        let endpoint = baseURL.appendingPathComponent("api/ats_match")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = ["id": app.id]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
+                self.currentATSResult = decoded
+            }
+        } catch {
+            print("Error fetching ATS match: \(error)")
+        }
+    }
+
+    public func autoTailor(for app: Application) async {
+        self.isTailoring = true
+        self.statusMessage = "✨ Auto-tailoring bullets from GitHub & compiling 1-page PDF..."
+        let endpoint = baseURL.appendingPathComponent("api/auto_tailor")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = ["id": app.id]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                let decoded = try JSONDecoder().decode(ATSResult.self, from: data)
+                self.currentATSResult = decoded
+                let timeMs = decoded.compilation_time_ms ?? 0
+                self.statusMessage = "✓ 1-Page PDF Recompiled in \(Double(timeMs) / 1000.0)s!"
+                await fetchApplications(silent: true)
+            }
+        } catch {
+            self.statusMessage = "Error tailoring bullets: \(error.localizedDescription)"
+        }
+        self.isTailoring = false
+    }
+
+    public func fetchInboxFeed() async {
+        let endpoint = baseURL.appendingPathComponent("api/inbox")
+        do {
+            let (data, response) = try await URLSession.shared.data(from: endpoint)
+            guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else { return }
+
+            struct InboxResponse: Codable {
+                let status: String
+                let feed: [InboxEmail]
+            }
+
+            let decoded = try JSONDecoder().decode(InboxResponse.self, from: data)
+            self.inboxFeed = decoded.feed
+        } catch {
+            // Non-critical
+        }
+    }
+
+    public func triggerGitHubScan() async {
+        self.statusMessage = "🔍 Scanning GitHub account for new projects & commits..."
+        let endpoint = baseURL.appendingPathComponent("api/github/scan")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: request)
+            if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                self.statusMessage = "✓ GitHub context crawler synced!"
+                if let sel = self.selectedApp {
+                    await fetchATSScore(for: sel)
+                }
+            }
+        } catch {
+            print("Error triggering github scan: \(error)")
         }
     }
 
@@ -134,8 +241,7 @@ public final class DataManager: ObservableObject {
         do {
             let (_, resp) = try await URLSession.shared.data(for: request)
             if let http = resp as? HTTPURLResponse, http.statusCode == 200 {
-                // Wait briefly and poll
-                try await Task.sleep(nanoseconds: 5_000_000_000)
+                try await Task.sleep(nanoseconds: 4_000_000_000)
                 await fetchApplications()
                 self.statusMessage = "✓ Scout complete!"
             }
@@ -188,6 +294,11 @@ public final class DataManager: ObservableObject {
 
     public func openMailto(app: Application) {
         guard let u = app.mailtoURL else { return }
+        NSWorkspace.shared.open(u)
+    }
+
+    public func openFollowUp(app: Application) {
+        guard let u = app.followUpMailtoURL else { return }
         NSWorkspace.shared.open(u)
     }
 

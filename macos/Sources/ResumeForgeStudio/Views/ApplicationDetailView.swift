@@ -17,7 +17,7 @@ public struct ApplicationDetailView: View {
         if let app = app {
             VStack(spacing: 0) {
                 // Top Header Card
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 8) {
@@ -71,28 +71,103 @@ public struct ApplicationDetailView: View {
                         .menuStyle(.borderlessButton)
                     }
 
-                    // Calendar & Deadline Card
-                    HStack {
-                        if let deadline = app.effectiveDeadlineString, !deadline.isEmpty {
-                            HStack(spacing: 10) {
-                                Image(systemName: "calendar.badge.clock")
-                                    .font(.title3)
-                                    .foregroundStyle(app.deadlineColor)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(app.oa_deadline != nil ? "Online Assessment Due:" : "Application Deadline:")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Text(app.deadlineText)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(app.deadlineColor)
-                                }
+                    // 1. Live OA Countdown Sentinel Banner (if OA_PENDING)
+                    if app.isOAPending {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 10, height: 10)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("🔴 Live Online Assessment Countdown")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.red)
+                                Text(app.oaCountdownFormatted)
+                                    .font(.subheadline)
+                                    .fontWeight(.heavy)
+                                    .foregroundStyle(.primary)
                             }
 
                             Spacer()
 
-                            // Quick Sync Buttons
+                            if let d = app.effectiveDeadlineDate {
+                                Button(action: {
+                                    Task {
+                                        _ = try? await calendarManager.addToAppleCalendar(application: app, deadlineDate: d, isOA: true)
+                                    }
+                                }) {
+                                    Label("Sync 48h/2h Alerts", systemImage: "bell.badge.fill")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+
+                    // 2. 7-Day Ghosting Sentinel Banner (if APPLIED >= 7 days)
+                    if app.isGhosting {
+                        HStack(spacing: 10) {
+                            Image(systemName: "clock.badge.exclamationmark.fill")
+                                .font(.title3)
+                                .foregroundStyle(.orange)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("⚠️ Ghosting Sentinel: No Response in \(app.daysSinceApplied ?? 7) Days")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.orange)
+                                Text("Applied on \(app.date_applied ?? "unknown"). Time for a gentle technical bump.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button(action: {
+                                dataManager.openFollowUp(app: app)
+                            }) {
+                                Label("⚡ 1-Click Send Follow-Up Ping", systemImage: "paperplane.fill")
+                                    .fontWeight(.semibold)
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.orange)
+                        }
+                        .padding(10)
+                        .background(Color.orange.opacity(0.12))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+
+                    // 3. ATS Match Radar & Auto-Tailor Card
+                    ATSScoreCardView(app: app)
+
+                    // 4. Calendar & Deadline Row
+                    HStack {
+                        if let deadline = app.effectiveDeadlineString, !deadline.isEmpty {
                             HStack(spacing: 8) {
+                                Image(systemName: "calendar.badge.clock")
+                                    .foregroundStyle(app.deadlineColor)
+                                Text(app.deadlineText)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(app.deadlineColor)
+                            }
+
+                            Spacer()
+
+                            HStack(spacing: 6) {
                                 Button(action: {
                                     if let d = app.effectiveDeadlineDate {
                                         Task {
@@ -101,50 +176,50 @@ public struct ApplicationDetailView: View {
                                         }
                                     }
                                 }) {
-                                    Label("Apple Calendar", systemImage: "calendar")
+                                    Label("Apple Cal", systemImage: "calendar")
                                 }
                                 .buttonStyle(.bordered)
-                                .font(.caption)
+                                .font(.caption2)
 
                                 Button(action: {
                                     if let d = app.effectiveDeadlineDate {
                                         calendarManager.openInGoogleCalendar(application: app, deadlineDate: d, isOA: app.oa_deadline != nil)
                                     }
                                 }) {
-                                    Label("Google Calendar", systemImage: "globe")
+                                    Label("Google Cal", systemImage: "globe")
                                 }
                                 .buttonStyle(.bordered)
-                                .font(.caption)
+                                .font(.caption2)
 
                                 Button(action: { showingDeadlineSheet = true }) {
                                     Image(systemName: "pencil")
                                 }
                                 .buttonStyle(.bordered)
-                                .font(.caption)
+                                .font(.caption2)
                             }
                         } else {
                             HStack {
                                 Image(systemName: "calendar")
                                     .foregroundStyle(.secondary)
-                                Text("No deadline recorded for this opening")
-                                    .font(.caption)
+                                Text("No deadline recorded")
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Button(action: { showingDeadlineSheet = true }) {
-                                    Label("Set Deadline & Calendar Reminder", systemImage: "plus.circle.fill")
-                                        .fontWeight(.medium)
+                                    Label("Set Deadline", systemImage: "plus.circle.fill")
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                .font(.caption2)
                             }
                         }
                     }
-                    .padding(10)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.4))
+                    .cornerRadius(6)
 
                     // Action Toolbar
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Button(action: { dataManager.openInZen(url: app.url) }) {
                             Label("Open ATS Portal", systemImage: "safari.fill")
                                 .fontWeight(.medium)
@@ -172,7 +247,7 @@ public struct ApplicationDetailView: View {
                         }
                     }
                 }
-                .padding(16)
+                .padding(14)
                 .background(Color(NSColor.windowBackgroundColor))
 
                 Divider()
@@ -189,7 +264,7 @@ public struct ApplicationDetailView: View {
                             Text("Tailored 1-Page PDF Not Found")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
-                            Text("Run 'Scout Roles Now' in the sidebar to auto-compile this resume.")
+                            Text("Click '✨ Auto-Tailor Bullets' above to compile a 1-page PDF for this role.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -210,7 +285,7 @@ public struct ApplicationDetailView: View {
                     .font(.title2)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
-                Text("Choose an opening from the list to preview the tailored 1-page resume and manage calendar deadlines.")
+                Text("Choose an opening from the list to preview the tailored 1-page resume and audit ATS match keywords.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
