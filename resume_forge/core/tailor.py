@@ -1,9 +1,11 @@
 """Resume Tailor Engine: Analyzes bullets against job descriptions and generates high-impact rewrites."""
 
 import re
+import os
 import json
 import urllib.request
 import urllib.error
+from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from .schema import ResumeData, WorkItem, ProjectItem
 from .ats import ATSAnalyzer, STRONG_ACTION_VERBS, SHORT_TECH_TERMS, STOP_WORDS
@@ -28,7 +30,9 @@ class BulletTailor:
         self,
         job_description: str,
         provider: str = "rule_based",
-        ollama_model: str = "llama3.2"
+        ollama_model: str = "llama3.2",
+        gemini_api_key: Optional[str] = None,
+        gemini_model: str = "gemini-3.5-flash-lite"
     ) -> Dict[str, Any]:
         """Analyzes all bullet points and suggests tailored improvements."""
         # 1. Extract target keywords from JD
@@ -38,6 +42,23 @@ class BulletTailor:
             w for w in raw_words
             if (w in SHORT_TECH_TERMS or (len(w) >= 3 and w not in STOP_WORDS))
         ]
+
+        # 2. Check for Gemini Flash provider
+        if provider in ("gemini", "auto"):
+            suggestions = self._tailor_gemini(
+                job_description,
+                api_key=gemini_api_key,
+                model=gemini_model
+            )
+            if suggestions:
+                return {
+                    "provider": "gemini",
+                    "model": gemini_model,
+                    "target_skills": target_skills[:15],
+                    "suggestions": suggestions
+                }
+            if provider == "gemini":
+                provider = "rule_based (fallback)"
 
         if provider == "ollama":
             suggestions = self._tailor_ollama(job_description, ollama_model)
@@ -215,6 +236,104 @@ Bullet points to improve:
                     return parsed_json
         except Exception:
             return None
+        return None
+
+    def _tailor_gemini(
+        self,
+        job_description: str,
+        api_key: Optional[str] = None,
+        model: str = "gemini-3.5-flash-lite"
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Calls Google AI Studio Gemini Flash for structured Google XYZ bullet rewrites in < 1.5s."""
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            cfg_file = Path.home() / ".config" / "resume-forge" / "config.json"
+            if cfg_file.exists():
+                try:
+                    cdata = json.loads(cfg_file.read_text(encoding="utf-8"))
+                    key = cdata.get("gemini_api_key")
+                    model = cdata.get("gemini_model", model)
+                except Exception:
+                    pass
+
+        if not key:
+            return None
+
+        bullets_payload = []
+        for w_idx, w in enumerate(self.data.work):
+            for b_idx, b in enumerate(w.highlights):
+                bullets_payload.append({
+                    "section": "work",
+                    "item_index": w_idx,
+                    "bullet_index": b_idx,
+                    "context": f"{w.position} @ {w.name}",
+                    "original": b
+                })
+        for p_idx, p in enumerate(self.data.projects):
+            for b_idx, b in enumerate(p.highlights):
+                bullets_payload.append({
+                    "section": "projects",
+                    "item_index": p_idx,
+                    "bullet_index": b_idx,
+                    "context": f"Project: {p.name}",
+                    "original": b
+                })
+
+        if not bullets_payload:
+            return []
+
+        prompt = f"""You are an elite technical resume editor specializing in engineering internships and new grad roles.
+Target Job Description:
+\"\"\"{job_description[:2000]}\"\"\"
+
+Task:
+Refine each candidate bullet point to strictly follow the Google XYZ formula:
+"Accomplished [X] as measured by [Y] by doing [Z]"
+Rules:
+1. Zero hallucination: Ground all claims strictly in the provided bullets (TetherKit, SmartSpend, etc.).
+2. Emphasize quantifiable performance metrics, strong technical action verbs, and matching systems/software skills.
+3. Keep each bullet concise and impactful (under 2 lines).
+
+Bullets to optimize:
+{json.dumps(bullets_payload[:6], indent=2)}
+"""
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "response_mime_type": "application/json",
+                "response_schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "section": {"type": "string"},
+                            "item_index": {"type": "integer"},
+                            "bullet_index": {"type": "integer"},
+                            "context": {"type": "string"},
+                            "original": {"type": "string"},
+                            "improved": {"type": "string"},
+                            "rationale": {"type": "string"}
+                        },
+                        "required": ["section", "item_index", "bullet_index", "original", "improved", "rationale"]
+                    }
+                }
+            }
+        }
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                res_json = json.loads(resp.read().decode("utf-8"))
+                text_out = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text_out)
+                if isinstance(parsed, list):
+                    return parsed
+        except Exception as e:
+            return None
+
         return None
 
     def apply_improvements(self, accepted_suggestions: List[Dict[str, Any]]) -> ResumeData:
