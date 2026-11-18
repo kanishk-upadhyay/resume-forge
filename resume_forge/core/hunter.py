@@ -476,6 +476,8 @@ class SmartRecruitersProvider(BaseATSProvider):
         "cern": {"id": "CERN", "name": "CERN"},
         "square": {"id": "Block", "name": "Block / Square"},
         "block": {"id": "Block", "name": "Block / Square"},
+        "williams": {"id": "williamsracing", "name": "Williams Racing"},
+        "williamsracing": {"id": "williamsracing", "name": "Williams Racing"},
     }
 
     def __init__(self, company_id: str, company_name: Optional[str] = None):
@@ -1038,7 +1040,124 @@ ATSProviderRegistry.register("ashby", AshbyProvider)
 ATSProviderRegistry.register("workday", WorkdayProvider, aliases=["wd"])
 ATSProviderRegistry.register("aikyam", AikyamProvider, aliases=["aikyamjobs"])
 ATSProviderRegistry.register("hn", HNHiringProvider, aliases=["yc", "hnhiring"])
+
+
+class OracleHCMProvider(BaseATSProvider):
+    """Oracle Cloud HCM / Taleo Candidate Experience REST API provider."""
+    name = "oraclecloud"
+
+    COMMUNITY_PRESETS = {
+        "redbull": {
+            "api_url": "https://iagtme.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_2",
+            "preview_base": "https://iagtme.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2/requisitions/preview",
+            "name": "Red Bull Racing & Technology"
+        },
+        "redbullracing": {
+            "api_url": "https://iagtme.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_2",
+            "preview_base": "https://iagtme.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2/requisitions/preview",
+            "name": "Red Bull Racing & Technology"
+        }
+    }
+
+    def __init__(self, target_id: str = "redbullracing", company_name: Optional[str] = None):
+        preset = self.COMMUNITY_PRESETS.get(target_id.lower().strip(), {})
+        self.target_id = target_id
+        self.api_url = preset.get("api_url") or f"https://{target_id}.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_2"
+        self.preview_base = preset.get("preview_base") or f"https://{target_id}.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2/requisitions/preview"
+        self.company_name = company_name or preset.get("name") or "Red Bull Racing & Technology"
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        if not self.api_url:
+            return postings
+
+        headers = {
+            "User-Agent": DEFAULT_HEADERS["User-Agent"],
+            "Accept": "application/json",
+            "ora-irc-language": "en"
+        }
+        req = urllib.request.Request(self.api_url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                for item in data.get("items", []):
+                    for r in item.get("requisitionList", []):
+                        title = r.get("Title", "")
+                        job_id = str(r.get("Id", ""))
+                        loc_name = r.get("PrimaryLocation", "") or "Milton Keynes, UK"
+                        posted_date = r.get("PostedDate", "")
+
+                        if not _match_location(loc_name, location):
+                            continue
+                        if not _match_role(title, role):
+                            continue
+
+                        apply_url = f"{self.preview_base}/{job_id}"
+                        postings.append(JobPosting(
+                            id=f"oracle_{self.target_id}_{job_id}",
+                            title=title,
+                            company=self.company_name,
+                            location=loc_name,
+                            url=apply_url,
+                            apply_url=apply_url,
+                            description=title,
+                            ats_type="oraclecloud"
+                        ))
+        except Exception:
+            pass
+        return postings[:limit]
+
+
+class PinpointProvider(BaseATSProvider):
+    """Pinpoint HQ Public Jobs JSON API provider."""
+    name = "pinpoint"
+
+    COMMUNITY_PRESETS = {
+        "astonmartin": {"subdomain": "astonmartinf1", "name": "Aston Martin Aramco F1 Team"},
+        "astonmartinf1": {"subdomain": "astonmartinf1", "name": "Aston Martin Aramco F1 Team"},
+    }
+
+    def __init__(self, board_id: str = "astonmartinf1", company_name: Optional[str] = None):
+        preset = self.COMMUNITY_PRESETS.get(board_id.lower().strip(), {})
+        self.subdomain = preset.get("subdomain") or board_id
+        self.company_name = company_name or preset.get("name") or "Aston Martin Aramco F1 Team"
+
+    def fetch_jobs(self, role: str = "", location: str = "", limit: int = 10) -> List[JobPosting]:
+        postings = []
+        url = f"https://{self.subdomain}.pinpointhq.com/en/jobs.json"
+        req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                for j in data.get("data", []):
+                    title = j.get("title", "")
+                    job_id = str(j.get("id", ""))
+                    loc_name = j.get("location", {}).get("name", "") or "Silverstone, UK"
+                    url = j.get("url", f"https://{self.subdomain}.pinpointhq.com/en/jobs/{job_id}")
+
+                    if not _match_location(loc_name, location):
+                        continue
+                    if not _match_role(title, role):
+                        continue
+
+                    postings.append(JobPosting(
+                        id=f"pinpoint_{self.subdomain}_{job_id}",
+                        title=title,
+                        company=self.company_name,
+                        location=loc_name,
+                        url=url,
+                        apply_url=url,
+                        description=title,
+                        ats_type="pinpoint"
+                    ))
+        except Exception:
+            pass
+        return postings[:limit]
+
+
 ATSProviderRegistry.register("rss", RSSFeedProvider, aliases=["feed", "atom"])
+ATSProviderRegistry.register("oraclecloud", OracleHCMProvider, aliases=["oracle", "taleo", "oracle_hcm"])
+ATSProviderRegistry.register("pinpoint", PinpointProvider, aliases=["pinpointhq"])
 
 
 class JobHunter:
@@ -1050,11 +1169,13 @@ class JobHunter:
 
     # Default community discoverable company boards for multi-board search
     DEFAULT_BOARDS = {
-        "greenhouse": ["canonical", "figma", "stripe", "databricks", "vercel", "brex", "scaleai"],
+        "greenhouse": ["canonical", "figma", "stripe", "databricks", "vercel", "brex", "scaleai", "gitlab", "mozilla"],
         "lever": ["palantir"],
-        "smartrecruiters": ["cern", "boschgroup"],
+        "smartrecruiters": ["cern", "boschgroup", "williamsracing"],
         "ashby": ["linear", "ramp", "cursor", "supabase", "modal", "retool", "posthog"],
-        "workday": ["redhat", "samsung"]
+        "workday": ["redhat", "samsung"],
+        "oraclecloud": ["redbullracing"],
+        "pinpoint": ["astonmartinf1"],
     }
 
     # Backward compatibility aliases
@@ -1224,6 +1345,10 @@ class JobHunter:
                 providers.append(LeverProvider(comp, comp.capitalize()))
             elif p_target == "ashby" or comp in self.DEFAULT_BOARDS.get("ashby", []):
                 providers.append(AshbyProvider(comp, comp.capitalize()))
+            elif p_target in ("oraclecloud", "oracle", "taleo") or comp in self.DEFAULT_BOARDS.get("oraclecloud", []):
+                providers.append(OracleHCMProvider(comp))
+            elif p_target in ("pinpoint", "pinpointhq") or comp in self.DEFAULT_BOARDS.get("pinpoint", []):
+                providers.append(PinpointProvider(comp))
             elif p_target == "greenhouse" or comp in self.DEFAULT_BOARDS.get("greenhouse", []):
                 providers.append(GreenhouseProvider(comp, comp.capitalize()))
             else:
