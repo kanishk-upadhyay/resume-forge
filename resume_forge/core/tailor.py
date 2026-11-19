@@ -112,6 +112,20 @@ class BulletTailor:
                 if suggestion:
                     suggestions.append(suggestion)
 
+        # Scan open-source upstream contributions
+        for o_idx, os_item in enumerate(self.data.open_source):
+            for b_idx, bullet in enumerate(os_item.highlights):
+                suggestion = self._enhance_single_bullet(
+                    bullet,
+                    context=f"Open Source: {os_item.project} ({os_item.role})",
+                    skills_pool=skills_queue,
+                    section="open_source",
+                    item_idx=o_idx,
+                    bullet_idx=b_idx
+                )
+                if suggestion:
+                    suggestions.append(suggestion)
+
         return suggestions
 
     def _enhance_single_bullet(
@@ -201,6 +215,9 @@ class BulletTailor:
         for p in self.data.projects:
             for b in p.highlights:
                 bullets_payload.append(f"Project ({p.name}): {b}")
+        for o in self.data.open_source:
+            for b in o.highlights:
+                bullets_payload.append(f"Open Source ({o.project} - {o.role}): {b}")
 
         prompt = f"""You are an elite technical resume editor.
 Given this Target Job Description:
@@ -278,6 +295,15 @@ Bullet points to improve:
                     "context": f"Project: {p.name}",
                     "original": b
                 })
+        for o_idx, o in enumerate(self.data.open_source):
+            for b_idx, b in enumerate(o.highlights):
+                bullets_payload.append({
+                    "section": "open_source",
+                    "item_index": o_idx,
+                    "bullet_index": b_idx,
+                    "context": f"Open Source Contribution: {o.project} ({o.role})",
+                    "original": b
+                })
 
         if not bullets_payload:
             return []
@@ -292,10 +318,11 @@ Refine each candidate bullet point to strictly follow the Google XYZ formula:
 Rules:
 1. Zero hallucination: Ground all claims strictly in the provided bullets (TetherKit, SmartSpend, etc.).
 2. Emphasize quantifiable performance metrics, strong technical action verbs, and matching systems/software skills.
-3. Keep each bullet concise and impactful (under 2 lines).
+3. Crucial Attribution Rule: For "open_source" sections, the candidate is an UPSTREAM CONTRIBUTOR (authored PRs, patches, bug fixes). NEVER rephrase an open-source contribution to sound like the candidate created or owns the entire upstream project. Preserve phrasing like "Authored upstream PRs...", "Patched concurrency defect in upstream...", "Contributed...".
+4. Keep each bullet concise and impactful (under 2 lines).
 
 Bullets to optimize:
-{json.dumps(bullets_payload[:6], indent=2)}
+{json.dumps(bullets_payload[:8], indent=2)}
 """
 
         payload = {
@@ -353,5 +380,10 @@ Bullets to optimize:
                 p = self.data.projects[i_idx]
                 if b_idx < len(p.highlights):
                     p.highlights[b_idx] = new_text
+
+            elif sec == "open_source" and i_idx < len(self.data.open_source):
+                o = self.data.open_source[i_idx]
+                if b_idx < len(o.highlights):
+                    o.highlights[b_idx] = new_text
 
         return self.data

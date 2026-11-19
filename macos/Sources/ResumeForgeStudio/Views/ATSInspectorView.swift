@@ -350,13 +350,19 @@ public struct ATSInspectorView: View {
                     .cornerRadius(8)
                 }
 
-                // 6. Tailored Repositories & Highlights
+                // 6. Tailored Original Projects
                 if let projs = atsResult?.tailored_projects, !projs.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("TAILORED REPOSITORIES")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.blue)
+                        HStack {
+                            Text("PERSONAL PROJECTS (ORIGINAL)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.blue)
+                            Spacer()
+                            Text("Independent Work")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
                         ForEach(projs, id: \.self) { p in
                             HStack {
@@ -367,10 +373,59 @@ public struct ATSInspectorView: View {
                                     .font(.caption)
                                     .fontWeight(.medium)
                                 Spacer()
+                                Text("Author")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(Color.blue.opacity(0.12))
+                                    .foregroundStyle(.blue)
+                                    .cornerRadius(3)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.blue.opacity(0.08))
+                            .cornerRadius(5)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                    .cornerRadius(8)
+                }
+
+                // 7. Open-Source Upstream Contributions (Forks)
+                if let foss = atsResult?.tailored_open_source, !foss.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("OPEN-SOURCE CONTRIBUTIONS (UPSTREAM FORKS)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.purple)
+                            Spacer()
+                            Text("Upstream PRs / Patches")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        ForEach(foss, id: \.self) { item in
+                            HStack {
+                                Image(systemName: "arrow.triangle.branch")
+                                    .font(.caption2)
+                                    .foregroundStyle(.purple)
+                                Text(item)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text("Contributor")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(Color.purple.opacity(0.12))
+                                    .foregroundStyle(.purple)
+                                    .cornerRadius(3)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.purple.opacity(0.08))
                             .cornerRadius(5)
                         }
                     }

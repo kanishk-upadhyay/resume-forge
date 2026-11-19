@@ -17,10 +17,12 @@ public struct GitHubRepoListView: View {
                 let cat = (repo.category ?? "").lowercased()
                 let name = repo.repo.lowercased()
                 switch selectedCategory {
+                case "ORIGINALS":
+                    return !repo.isFork
+                case "FORKS":
+                    return repo.isFork
                 case "SYSTEMS":
                     return cat.contains("system") || cat.contains("driver") || name.contains("tether") || name.contains("soc") || name.contains("core")
-                case "FOSS":
-                    return cat.contains("foss") || cat.contains("open_source") || name.contains("gitlab") || name.contains("swift")
                 case "APPS":
                     return cat.contains("app") || cat.contains("fullstack") || cat.contains("web") || name.contains("smartspend") || name.contains("resume")
                 default:
@@ -89,11 +91,14 @@ public struct GitHubRepoListView: View {
                         RepoCategoryPill(title: "All", isSelected: selectedCategory == "ALL") {
                             selectedCategory = "ALL"
                         }
+                        RepoCategoryPill(title: "Originals", isSelected: selectedCategory == "ORIGINALS") {
+                            selectedCategory = "ORIGINALS"
+                        }
+                        RepoCategoryPill(title: "FOSS Forks", isSelected: selectedCategory == "FORKS") {
+                            selectedCategory = "FORKS"
+                        }
                         RepoCategoryPill(title: "Systems", isSelected: selectedCategory == "SYSTEMS") {
                             selectedCategory = "SYSTEMS"
-                        }
-                        RepoCategoryPill(title: "FOSS", isSelected: selectedCategory == "FOSS") {
-                            selectedCategory = "FOSS"
                         }
                         RepoCategoryPill(title: "Apps", isSelected: selectedCategory == "APPS") {
                             selectedCategory = "APPS"
@@ -164,10 +169,20 @@ private struct RepoRowView: View {
                 .foregroundStyle(repoIconColor)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(repo.repo)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(repo.repo)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+
+                    Text(repo.repoBadgeTitle)
+                        .font(.system(size: 8.5, weight: .semibold))
+                        .padding(.horizontal, 4.5)
+                        .padding(.vertical, 1.5)
+                        .background(repo.isFork ? Color.purple.opacity(0.14) : Color.green.opacity(0.14))
+                        .foregroundStyle(repo.isFork ? Color.purple : Color.green)
+                        .cornerRadius(3)
+                }
 
                 HStack(spacing: 6) {
                     if let lang = repo.primary_language, !lang.isEmpty {
@@ -331,7 +346,22 @@ public struct GitHubRepoDetailView: View {
 
                 Divider()
 
-                // Content Area
+                // Attribution Banner
+                HStack(spacing: 8) {
+                    Image(systemName: repo.isFork ? "arrow.triangle.branch" : "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(repo.isFork ? .purple : .green)
+                    Text(repo.isFork ? "Open-Source Upstream Contribution (Fork) — Author of Upstream PRs & Patches" : "Original Personal Project — Authored & Maintained by Kanishk Upadhyay")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(repo.isFork ? .purple : .green)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 7)
+                .background(repo.isFork ? Color.purple.opacity(0.08) : Color.green.opacity(0.08))
+
+                Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         // Extracted Google XYZ Bullets Section

@@ -279,6 +279,7 @@ public struct ATSResult: Codable {
     public let strengths: [String]?
     public let suggestions: [String]?
     public let tailored_projects: [String]?
+    public let tailored_open_source: [String]?
     public let compilation_time_ms: Int?
     public let job_description: String?
 }
@@ -294,6 +295,14 @@ public struct GitHubRepo: Identifiable, Codable, Hashable {
     public let stars: Int?
     public let ats_bullets: [String]?
     public let last_pushed: String?
+
+    public var isFork: Bool {
+        return !(is_original ?? true)
+    }
+
+    public var repoBadgeTitle: String {
+        return isFork ? "FOSS Fork" : "Original"
+    }
 }
 
 public struct GitHubReposData: Codable {
